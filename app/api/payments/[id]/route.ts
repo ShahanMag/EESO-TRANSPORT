@@ -1,0 +1,130 @@
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import Payment from "@/models/Payment";
+import mongoose from "mongoose";
+
+// GET single payment
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await dbConnect();
+
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment ID" },
+        { status: 400 }
+      );
+    }
+
+    const payment = await Payment.findById(params.id).populate({
+      path: "vehicleId",
+      select: "number name employeeId",
+      populate: {
+        path: "employeeId",
+        select: "name type",
+      },
+    });
+
+    if (!payment) {
+      return NextResponse.json(
+        { success: false, error: "Payment not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT update payment
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await dbConnect();
+
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment ID" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const payment = await Payment.findByIdAndUpdate(params.id, body, {
+      new: true,
+      runValidators: true,
+    }).populate({
+      path: "vehicleId",
+      select: "number name employeeId",
+      populate: {
+        path: "employeeId",
+        select: "name type",
+      },
+    });
+
+    if (!payment) {
+      return NextResponse.json(
+        { success: false, error: "Payment not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 400 }
+    );
+  }
+}
+
+// DELETE payment
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await dbConnect();
+
+    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment ID" },
+        { status: 400 }
+      );
+    }
+
+    const payment = await Payment.findByIdAndDelete(params.id);
+
+    if (!payment) {
+      return NextResponse.json(
+        { success: false, error: "Payment not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {},
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
