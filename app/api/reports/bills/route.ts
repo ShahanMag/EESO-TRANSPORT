@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Bill from "@/models/Bill";
 
 // GET Bills Report - filter by type/agent/date, show income vs expense summary
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();

@@ -4,6 +4,8 @@ import Vehicle from "@/models/Vehicle";
 import mongoose from "mongoose";
 
 // GET single vehicle
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -44,6 +46,7 @@ export async function GET(
 }
 
 // PUT update vehicle
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -92,6 +95,7 @@ export async function PUT(
 }
 
 // DELETE vehicle
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

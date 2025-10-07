@@ -4,6 +4,8 @@ import Payment from "@/models/Payment";
 import Installment from "@/models/Installment";
 
 // GET Payment Records Report - filter by vehicle/date, show totals and dues
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();

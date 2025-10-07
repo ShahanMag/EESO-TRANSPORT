@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Installment from "@/models/Installment";
 
+export const dynamic = "force-dynamic";
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,6 +36,7 @@ export async function PUT(
     );
   }
 }
+
 
 export async function DELETE(
   request: NextRequest,

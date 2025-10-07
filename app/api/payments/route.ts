@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 
 // GET all payments
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST create new payment
+
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();

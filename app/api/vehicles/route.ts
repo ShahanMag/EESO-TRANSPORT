@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Vehicle from "@/models/Vehicle";
 
 // GET all vehicles
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST create new vehicle
+
 export async function POST(request: NextRequest) {
   try {
     await dbConnect();

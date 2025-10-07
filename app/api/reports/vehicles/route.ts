@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Vehicle from "@/models/Vehicle";
 
 // GET Vehicle Report - list with assigned employees
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();

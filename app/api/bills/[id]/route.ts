@@ -3,6 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Bill from "@/models/Bill";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 // GET single bill
 export async function GET(
   request: NextRequest,

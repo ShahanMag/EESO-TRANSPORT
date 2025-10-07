@@ -4,6 +4,8 @@ import Employee from "@/models/Employee";
 import mongoose from "mongoose";
 
 // GET single employee
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -41,6 +43,7 @@ export async function GET(
 }
 
 // PUT update employee
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -89,6 +92,7 @@ export async function PUT(
 }
 
 // DELETE employee
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

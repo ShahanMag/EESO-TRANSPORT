@@ -5,6 +5,8 @@ import Installment from "@/models/Installment";
 import mongoose from "mongoose";
 
 // GET single payment
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,6 +51,7 @@ export async function GET(
 }
 
 // PUT update payment
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -97,6 +100,7 @@ export async function PUT(
 }
 
 // DELETE payment
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

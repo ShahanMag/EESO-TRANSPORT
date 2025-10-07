@@ -5,6 +5,8 @@ import Vehicle from "@/models/Vehicle";
 import mongoose from "mongoose";
 
 // GET Employee Report - list with vehicle counts
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await dbConnect();
