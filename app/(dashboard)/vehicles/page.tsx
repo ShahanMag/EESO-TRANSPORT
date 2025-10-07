@@ -43,7 +43,7 @@ export default function VehiclesPage() {
   const [formData, setFormData] = useState({
     number: "",
     name: "",
-    employeeId: "",
+    employeeId: "unassigned",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -92,8 +92,8 @@ export default function VehiclesPage() {
       newErrors.name = "Vehicle name is required";
     }
 
-    if (!/^[A-Z]{3}-\d{4}$/.test(formData.number)) {
-      newErrors.number = "Vehicle number must be in format ABC-1234";
+    if (!formData.number.trim()) {
+      newErrors.number = "Vehicle number is required";
     }
 
     setErrors(newErrors);
@@ -115,7 +115,7 @@ export default function VehiclesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          employeeId: formData.employeeId || null,
+          employeeId: formData.employeeId === "unassigned" ? null : formData.employeeId,
         }),
       });
 
@@ -154,11 +154,11 @@ export default function VehiclesPage() {
       setFormData({
         number: vehicle.number,
         name: vehicle.name,
-        employeeId: vehicle.employeeId?._id || "",
+        employeeId: vehicle.employeeId?._id || "unassigned",
       });
     } else {
       setEditingVehicle(null);
-      setFormData({ number: "", name: "", employeeId: "" });
+      setFormData({ number: "", name: "", employeeId: "unassigned" });
     }
     setErrors({});
     setIsDialogOpen(true);
@@ -167,7 +167,7 @@ export default function VehiclesPage() {
   function handleCloseDialog() {
     setIsDialogOpen(false);
     setEditingVehicle(null);
-    setFormData({ number: "", name: "", employeeId: "" });
+    setFormData({ number: "", name: "", employeeId: "unassigned" });
     setErrors({});
   }
 
@@ -222,7 +222,7 @@ export default function VehiclesPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.employeeId
-                    ? `${vehicle.employeeId.name} (${vehicle.employeeId.type})`
+                    ? vehicle.employeeId.name
                     : "Unassigned"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -262,14 +262,14 @@ export default function VehiclesPage() {
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="number">Vehicle Number (ABC-1234)</Label>
+                <Label htmlFor="number">Vehicle Number</Label>
                 <Input
                   id="number"
                   value={formData.number}
                   onChange={(e) =>
-                    setFormData({ ...formData, number: e.target.value.toUpperCase() })
+                    setFormData({ ...formData, number: e.target.value })
                   }
-                  placeholder="ABC-1234"
+                  placeholder="Enter vehicle number"
                 />
                 {errors.number && (
                   <p className="text-sm text-red-500 mt-1">{errors.number}</p>
@@ -300,10 +300,10 @@ export default function VehiclesPage() {
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {employees.map((emp) => (
                       <SelectItem key={emp._id} value={emp._id}>
-                        {emp.name} ({emp.type})
+                        {emp.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

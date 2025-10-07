@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Payment from "@/models/Payment";
+import Installment from "@/models/Installment";
 
 // GET Payment Records Report - filter by vehicle/date, show totals and dues
 export async function GET(request: NextRequest) {
@@ -39,12 +40,25 @@ export async function GET(request: NextRequest) {
       })
       .lean();
 
+    // For each payment, fetch installments and calculate paid amount
+    const paymentsWithInstallments = await Promise.all(
+      payments.map(async (payment: any) => {
+        const installments = await Installment.find({ paymentId: payment._id }).lean();
+        const paidAmount = installments.reduce((sum, inst: any) => sum + inst.amount, 0);
+        return {
+          ...payment,
+          paidAmount,
+          dues: payment.totalAmount - paidAmount,
+        };
+      })
+    );
+
     // Calculate totals
-    const summary = payments.reduce(
+    const summary = paymentsWithInstallments.reduce(
       (acc, payment) => {
         acc.totalAmount += payment.totalAmount;
         acc.totalPaid += payment.paidAmount;
-        acc.totalDues += payment.totalAmount - payment.paidAmount;
+        acc.totalDues += payment.dues;
         return acc;
       },
       { totalAmount: 0, totalPaid: 0, totalDues: 0 }
@@ -53,7 +67,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        payments,
+        payments: paymentsWithInstallments,
         summary,
       },
     });

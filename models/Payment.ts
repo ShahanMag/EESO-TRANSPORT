@@ -3,7 +3,6 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IPayment extends Document {
   vehicleId: mongoose.Types.ObjectId;
   totalAmount: number;
-  paidAmount: number;
   date: Date;
   remarks?: string;
   createdAt: Date;
@@ -22,17 +21,6 @@ const PaymentSchema: Schema<IPayment> = new Schema(
       required: [true, "Total amount is required"],
       min: [0, "Total amount cannot be negative"],
     },
-    paidAmount: {
-      type: Number,
-      required: [true, "Paid amount is required"],
-      min: [0, "Paid amount cannot be negative"],
-      validate: {
-        validator: function (this: IPayment, value: number) {
-          return value <= this.totalAmount;
-        },
-        message: "Paid amount cannot exceed total amount",
-      },
-    },
     date: {
       type: Date,
       required: [true, "Date is required"],
@@ -47,15 +35,6 @@ const PaymentSchema: Schema<IPayment> = new Schema(
     timestamps: true,
   }
 );
-
-// Virtual field for dues calculation
-PaymentSchema.virtual("dues").get(function (this: IPayment) {
-  return this.totalAmount - this.paidAmount;
-});
-
-// Ensure virtuals are included in JSON
-PaymentSchema.set("toJSON", { virtuals: true });
-PaymentSchema.set("toObject", { virtuals: true });
 
 // Prevent model recompilation in development
 const Payment: Model<IPayment> =

@@ -152,9 +152,6 @@ export default function ReportsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Phone
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Type
-                      </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         Vehicles Assigned
                       </th>
@@ -171,9 +168,6 @@ export default function ReportsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {emp.phone}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {emp.type}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
                           {emp.vehicleCount}
@@ -204,9 +198,6 @@ export default function ReportsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Assigned Employee
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Employee Type
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -220,9 +211,6 @@ export default function ReportsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {vehicle.employeeId?.name || "Unassigned"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {vehicle.employeeId?.type || "N/A"}
                         </td>
                       </tr>
                     ))}
@@ -303,14 +291,14 @@ export default function ReportsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(payment.date)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
                           {formatCurrency(payment.totalAmount)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
                           {formatCurrency(payment.paidAmount)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-semibold">
-                          {formatCurrency(payment.totalAmount - payment.paidAmount)}
+                          {formatCurrency(payment.dues)}
                         </td>
                       </tr>
                     ))}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Payment from "@/models/Payment";
+import Installment from "@/models/Installment";
 import mongoose from "mongoose";
 
 // GET single payment
@@ -107,6 +108,9 @@ export async function DELETE(
         { status: 400 }
       );
     }
+
+    // Delete all associated installments first
+    await Installment.deleteMany({ paymentId: params.id });
 
     const payment = await Payment.findByIdAndDelete(params.id);
 

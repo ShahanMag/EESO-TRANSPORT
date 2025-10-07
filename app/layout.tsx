@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Saudi Payment Management System",
-  description: "Employee and Vehicle Payment Management System",
+  title: "EESA Transport Co",
+  description: "EESA Transport Co",
 };
 
 export default function RootLayout({

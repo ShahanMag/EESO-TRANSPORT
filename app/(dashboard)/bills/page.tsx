@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
@@ -52,7 +53,7 @@ export default function BillsPage() {
     totalAmount: "",
     paidAmount: "",
     date: new Date().toISOString().split("T")[0],
-    employeeId: "",
+    employeeId: "none",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -91,10 +92,11 @@ export default function BillsPage() {
 
   async function fetchEmployees() {
     try {
-      const res = await fetch("/api/employees?type=agent");
+      const res = await fetch("/api/employees");
       const data = await res.json();
       if (data.success) {
-        setEmployees(data.data);
+        // Filter to only show agents
+        setEmployees(data.data.filter((emp: any) => emp.type === "agent"));
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -144,7 +146,7 @@ export default function BillsPage() {
           totalAmount: parseFloat(formData.totalAmount),
           paidAmount: parseFloat(formData.paidAmount),
           date: new Date(formData.date),
-          employeeId: formData.employeeId || null,
+          employeeId: formData.employeeId === "none" ? null : formData.employeeId,
         }),
       });
 
@@ -186,7 +188,7 @@ export default function BillsPage() {
         totalAmount: bill.totalAmount.toString(),
         paidAmount: bill.paidAmount.toString(),
         date: new Date(bill.date).toISOString().split("T")[0],
-        employeeId: bill.employeeId?._id || "",
+        employeeId: bill.employeeId?._id || "none",
       });
     } else {
       setEditingBill(null);
@@ -196,7 +198,7 @@ export default function BillsPage() {
         totalAmount: "",
         paidAmount: "",
         date: new Date().toISOString().split("T")[0],
-        employeeId: "",
+        employeeId: "none",
       });
     }
     setErrors({});
@@ -216,6 +218,11 @@ export default function BillsPage() {
     return <Badge variant={variant}>{status}</Badge>;
   }
 
+  // Calculate totals from filtered bills
+  const totalAmount = filteredBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+  const totalPaid = filteredBills.reduce((sum, bill) => sum + bill.paidAmount, 0);
+  const totalDues = totalAmount - totalPaid;
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -224,6 +231,45 @@ export default function BillsPage() {
           <Plus className="mr-2 h-4 w-4" />
           Add Bill
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(totalAmount)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Paid
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(totalPaid)}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total Dues
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(totalDues)}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -298,13 +344,13 @@ export default function BillsPage() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {bill.employeeId?.name || "N/A"}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
                   {formatCurrency(bill.totalAmount)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
                   {formatCurrency(bill.paidAmount)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-semibold">
                   {formatCurrency(bill.totalAmount - bill.paidAmount)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
@@ -425,7 +471,7 @@ export default function BillsPage() {
                     <SelectValue placeholder="Select agent" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {employees.map((emp) => (
                       <SelectItem key={emp._id} value={emp._id}>
                         {emp.name}

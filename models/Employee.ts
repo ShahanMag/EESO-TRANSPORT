@@ -4,7 +4,7 @@ export interface IEmployee extends Document {
   name: string;
   iqamaId: string;
   phone: string;
-  type: "driver" | "agent";
+  type: "employee" | "agent";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,8 +41,8 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
       type: String,
       required: [true, "Employee type is required"],
       enum: {
-        values: ["driver", "agent"],
-        message: "Type must be either driver or agent",
+        values: ["employee", "agent"],
+        message: "Type must be either employee or agent",
       },
     },
   },

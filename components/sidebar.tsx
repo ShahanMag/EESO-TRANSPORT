@@ -51,7 +51,7 @@ export function Sidebar() {
       </nav>
       <div className="border-t border-gray-800 p-4">
         <p className="text-xs text-gray-400">
-          © 2025 Saudi Payment Management
+          © 2025 EESA Transport Co
         </p>
       </div>
     </div>

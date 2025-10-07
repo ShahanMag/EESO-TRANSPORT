@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-SA", {
+  return new (globalThis.Intl.NumberFormat)("en-SA", {
     style: "currency",
     currency: "SAR",
   }).format(amount);
 }
 
 export function formatDate(date: Date | string): string {
-  return new Intl.DateFormat("en-SA", {
+  return new (globalThis.Intl.DateTimeFormat)("en-SA", {
     year: "numeric",
     month: "short",
     day: "numeric",

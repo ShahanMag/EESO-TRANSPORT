@@ -14,12 +14,7 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
       type: String,
       required: [true, "Vehicle number is required"],
       unique: true,
-      validate: {
-        validator: function (v: string) {
-          return /^[A-Z]{3}-\d{4}$/.test(v);
-        },
-        message: "Vehicle number must be in format ABC-1234",
-      },
+      trim: true,
     },
     name: {
       type: String,

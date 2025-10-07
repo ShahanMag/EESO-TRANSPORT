@@ -8,7 +8,7 @@ A comprehensive employee and vehicle payment management system built with Next.j
   - Iqama ID: 10 digits validation
   - Phone: +966XXXXXXXXX format
 
-- **Vehicle Management**: Manage vehicles with format ABC-1234, assign to employees
+- **Vehicle Management**: Manage vehicles, assign to employees
 
 - **Payment Records**: Track payments on vehicles
   - Auto-calculated dues (totalAmount - paidAmount)
@@ -127,7 +127,7 @@ A comprehensive employee and vehicle payment management system built with Next.j
 
 - **Iqama ID**: Must be exactly 10 digits
 - **Phone**: Must be in format +966XXXXXXXXX (Saudi format)
-- **Vehicle Number**: Must be in format ABC-1234
+- **Vehicle Number**: Required field only
 - **Paid Amount**: Cannot exceed total amount
 
 ## Features Highlights
