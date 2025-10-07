@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { toast } from "sonner";
 
 interface Vehicle {
   _id: string;
@@ -39,6 +41,8 @@ export default function VehiclesPage() {
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({
     number: "",
@@ -67,9 +71,12 @@ export default function VehiclesPage() {
       const data = await res.json();
       if (data.success) {
         setVehicles(data.data);
+      } else {
+        toast.error("Failed to fetch vehicles");
       }
     } catch (error) {
       console.error("Error fetching vehicles:", error);
+      toast.error("Error fetching vehicles");
     }
   }
 
@@ -79,9 +86,12 @@ export default function VehiclesPage() {
       const data = await res.json();
       if (data.success) {
         setEmployees(data.data);
+      } else {
+        toast.error("Failed to fetch employees");
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
+      toast.error("Error fetching employees");
     }
   }
 
@@ -122,29 +132,50 @@ export default function VehiclesPage() {
       const data = await res.json();
 
       if (data.success) {
+        toast.success(
+          editingVehicle
+            ? "Vehicle updated successfully"
+            : "Vehicle created successfully"
+        );
         fetchVehicles();
         handleCloseDialog();
       } else {
+        toast.error(data.error || "Failed to save vehicle");
         setErrors({ submit: data.error });
       }
     } catch (error) {
       console.error("Error saving vehicle:", error);
+      toast.error("An error occurred while saving vehicle");
       setErrors({ submit: "An error occurred" });
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this vehicle?")) return;
+  function handleDeleteClick(id: string) {
+    setDeletingVehicleId(id);
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deletingVehicleId) return;
 
     try {
-      const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/vehicles/${deletingVehicleId}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Vehicle deleted successfully");
         fetchVehicles();
+      } else {
+        toast.error(data.error || "Failed to delete vehicle");
       }
     } catch (error) {
       console.error("Error deleting vehicle:", error);
+      toast.error("An error occurred while deleting vehicle");
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setDeletingVehicleId(null);
     }
   }
 
@@ -236,7 +267,7 @@ export default function VehiclesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDelete(vehicle._id)}
+                    onClick={() => handleDeleteClick(vehicle._id)}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -324,6 +355,17 @@ export default function VehiclesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Vehicle"
+        description="Are you sure you want to delete this vehicle? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }

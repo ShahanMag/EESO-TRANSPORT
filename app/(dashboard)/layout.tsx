@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -11,6 +12,7 @@ export default function DashboardLayout({
       <main className="flex-1 overflow-y-auto bg-gray-50">
         <div className="container mx-auto p-6">{children}</div>
       </main>
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
