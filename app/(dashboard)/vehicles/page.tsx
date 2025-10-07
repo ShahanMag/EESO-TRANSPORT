@@ -224,7 +224,8 @@ export default function VehiclesPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      {/* Desktop Table View */}
+      <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -280,6 +281,45 @@ export default function VehiclesPage() {
           <div className="text-center py-12 text-gray-500">
             No vehicles found
           </div>
+        )}
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-4">
+        {filteredVehicles.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+            No vehicles found
+          </div>
+        ) : (
+          filteredVehicles.map((vehicle) => (
+            <div key={vehicle._id} className="bg-white rounded-lg shadow p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{vehicle.number}</h3>
+                  <p className="text-sm text-gray-600">{vehicle.name}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleOpenDialog(vehicle)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteClick(vehicle._id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))
         )}
       </div>
 

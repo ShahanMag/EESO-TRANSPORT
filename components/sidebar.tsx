@@ -22,12 +22,16 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onLinkClick?: () => void;
+}
+
+export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
-      <div className="flex h-16 items-center gap-3 px-6">
+    <div className="flex h-full w-full flex-col bg-gray-900 text-white">
+      <div className="flex h-16 items-center gap-3 px-6 border-b border-gray-800">
         <Image
           src="/images/Logo.jpeg"
           alt="EESA Transport Co Logo"
@@ -44,6 +48,7 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onLinkClick}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
