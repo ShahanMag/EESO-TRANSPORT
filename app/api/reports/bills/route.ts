@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
         totalExpense: 0,
         paidExpense: 0,
         duesExpense: 0,
+        netTotal: 0,
+        netPaid: 0,
+        netDues: 0,
       }
     );
 
