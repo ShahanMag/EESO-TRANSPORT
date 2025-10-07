@@ -6,19 +6,20 @@ import mongoose from "mongoose";
 // GET single employee
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid employee ID" },
         { status: 400 }
       );
     }
 
-    const employee = await Employee.findById(params.id);
+    const employee = await Employee.findById(id);
 
     if (!employee) {
       return NextResponse.json(
@@ -42,12 +43,13 @@ export async function GET(
 // PUT update employee
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid employee ID" },
         { status: 400 }
@@ -55,7 +57,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const employee = await Employee.findByIdAndUpdate(params.id, body, {
+    const employee = await Employee.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
     });
@@ -89,19 +91,20 @@ export async function PUT(
 // DELETE employee
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid employee ID" },
         { status: 400 }
       );
     }
 
-    const employee = await Employee.findByIdAndDelete(params.id);
+    const employee = await Employee.findByIdAndDelete(id);
 
     if (!employee) {
       return NextResponse.json(

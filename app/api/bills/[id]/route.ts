@@ -6,19 +6,20 @@ import mongoose from "mongoose";
 // GET single bill
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid bill ID" },
         { status: 400 }
       );
     }
 
-    const bill = await Bill.findById(params.id).populate(
+    const bill = await Bill.findById(id).populate(
       "employeeId",
       "name type"
     );
@@ -45,12 +46,13 @@ export async function GET(
 // PUT update bill
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid bill ID" },
         { status: 400 }
@@ -58,7 +60,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const bill = await Bill.findByIdAndUpdate(params.id, body, {
+    const bill = await Bill.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
     }).populate("employeeId", "name type");
@@ -85,19 +87,20 @@ export async function PUT(
 // DELETE bill
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid bill ID" },
         { status: 400 }
       );
     }
 
-    const bill = await Bill.findByIdAndDelete(params.id);
+    const bill = await Bill.findByIdAndDelete(id);
 
     if (!bill) {
       return NextResponse.json(

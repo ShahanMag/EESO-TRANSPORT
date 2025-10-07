@@ -4,13 +4,14 @@ import Installment from "@/models/Installment";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
     const body = await request.json();
-    const installment = await Installment.findByIdAndUpdate(params.id, body, {
+    const installment = await Installment.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
     });
@@ -36,12 +37,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    const installment = await Installment.findByIdAndDelete(params.id);
+    const installment = await Installment.findByIdAndDelete(id);
 
     if (!installment) {
       return NextResponse.json(

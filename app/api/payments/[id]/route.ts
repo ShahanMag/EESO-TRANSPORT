@@ -7,19 +7,20 @@ import mongoose from "mongoose";
 // GET single payment
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid payment ID" },
         { status: 400 }
       );
     }
 
-    const payment = await Payment.findById(params.id).populate({
+    const payment = await Payment.findById(id).populate({
       path: "vehicleId",
       select: "number name employeeId",
       populate: {
@@ -50,12 +51,13 @@ export async function GET(
 // PUT update payment
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid payment ID" },
         { status: 400 }
@@ -63,7 +65,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const payment = await Payment.findByIdAndUpdate(params.id, body, {
+    const payment = await Payment.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
     }).populate({
@@ -97,12 +99,13 @@ export async function PUT(
 // DELETE payment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid payment ID" },
         { status: 400 }
@@ -110,9 +113,9 @@ export async function DELETE(
     }
 
     // Delete all associated installments first
-    await Installment.deleteMany({ paymentId: params.id });
+    await Installment.deleteMany({ paymentId: id });
 
-    const payment = await Payment.findByIdAndDelete(params.id);
+    const payment = await Payment.findByIdAndDelete(id);
 
     if (!payment) {
       return NextResponse.json(

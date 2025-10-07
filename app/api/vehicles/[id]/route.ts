@@ -6,19 +6,20 @@ import mongoose from "mongoose";
 // GET single vehicle
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid vehicle ID" },
         { status: 400 }
       );
     }
 
-    const vehicle = await Vehicle.findById(params.id).populate(
+    const vehicle = await Vehicle.findById(id).populate(
       "employeeId",
       "name type"
     );
@@ -45,12 +46,13 @@ export async function GET(
 // PUT update vehicle
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid vehicle ID" },
         { status: 400 }
@@ -58,7 +60,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const vehicle = await Vehicle.findByIdAndUpdate(params.id, body, {
+    const vehicle = await Vehicle.findByIdAndUpdate(id, body, {
       new: true,
       runValidators: true,
     }).populate("employeeId", "name type");
@@ -92,19 +94,20 @@ export async function PUT(
 // DELETE vehicle
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
+    const { id } = await params;
 
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid vehicle ID" },
         { status: 400 }
       );
     }
 
-    const vehicle = await Vehicle.findByIdAndDelete(params.id);
+    const vehicle = await Vehicle.findByIdAndDelete(id);
 
     if (!vehicle) {
       return NextResponse.json(
