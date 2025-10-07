@@ -7,6 +7,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "EESA Transport Co",
   description: "EESA Transport Co",
+  icons: {
+    icon: "/images/Logo.jpeg",
+    apple: "/images/Logo.jpeg",
+  },
 };
 
 export default function RootLayout({

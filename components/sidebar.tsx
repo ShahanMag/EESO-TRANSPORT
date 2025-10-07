@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   Users,
   Car,
@@ -26,8 +27,15 @@ export function Sidebar() {
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900 text-white">
-      <div className="flex h-16 items-center px-6">
-        <h1 className="text-xl font-bold">Saudi Payment System</h1>
+      <div className="flex h-16 items-center gap-3 px-6">
+        <Image
+          src="/images/Logo.jpeg"
+          alt="EESA Transport Co Logo"
+          width={40}
+          height={40}
+          className="rounded-lg"
+        />
+        <h1 className="text-xl font-bold">EESA Transport Co</h1>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
