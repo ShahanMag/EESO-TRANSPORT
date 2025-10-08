@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { exportToExcel } from "@/lib/excel-utils";
+import { Download } from "lucide-react";
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState("employees");
@@ -68,9 +70,105 @@ export default function ReportsPage() {
     }
   }
 
+  function downloadExcel() {
+    if (!reportData) return;
+
+    switch (activeTab) {
+      case "employees":
+        const employeeData = reportData.map((emp: any) => ({
+          name: emp.name,
+          iqamaId: emp.iqamaId,
+          phone: emp.phone,
+          vehicleCount: emp.vehicleCount,
+        }));
+        exportToExcel(
+          employeeData,
+          [
+            { header: "Name", key: "name", width: 25 },
+            { header: "Iqama ID", key: "iqamaId", width: 15 },
+            { header: "Phone", key: "phone", width: 15 },
+            { header: "Vehicles Assigned", key: "vehicleCount", width: 18 },
+          ],
+          "employee-report"
+        );
+        break;
+
+      case "vehicles":
+        const vehicleData = reportData.map((vehicle: any) => ({
+          number: vehicle.number,
+          name: vehicle.name,
+          assignedEmployee: vehicle.employeeId?.name || "Unassigned",
+        }));
+        exportToExcel(
+          vehicleData,
+          [
+            { header: "Vehicle Number", key: "number", width: 18 },
+            { header: "Vehicle Name", key: "name", width: 25 },
+            { header: "Assigned Employee", key: "assignedEmployee", width: 25 },
+          ],
+          "vehicle-report"
+        );
+        break;
+
+      case "payments":
+        const paymentData = reportData.payments.map((payment: any) => ({
+          vehicle: payment.vehicleId.number,
+          date: formatDate(payment.date),
+          totalAmount: payment.totalAmount,
+          paidAmount: payment.paidAmount,
+          dues: payment.dues,
+        }));
+        exportToExcel(
+          paymentData,
+          [
+            { header: "Vehicle", key: "vehicle", width: 18 },
+            { header: "Date", key: "date", width: 12 },
+            { header: "Total Amount (SAR)", key: "totalAmount", width: 18 },
+            { header: "Paid Amount (SAR)", key: "paidAmount", width: 18 },
+            { header: "Dues (SAR)", key: "dues", width: 15 },
+          ],
+          "payment-records-report"
+        );
+        break;
+
+      case "bills":
+        const billData = reportData.bills.map((bill: any) => ({
+          name: bill.name,
+          type: bill.type.charAt(0).toUpperCase() + bill.type.slice(1),
+          date: formatDate(bill.date),
+          agent: bill.employeeId?.name || "N/A",
+          totalAmount: bill.totalAmount,
+          paidAmount: bill.paidAmount,
+          dues: bill.totalAmount - bill.paidAmount,
+        }));
+        exportToExcel(
+          billData,
+          [
+            { header: "Bill Name", key: "name", width: 25 },
+            { header: "Type", key: "type", width: 10 },
+            { header: "Date", key: "date", width: 12 },
+            { header: "Agent", key: "agent", width: 20 },
+            { header: "Total Amount (SAR)", key: "totalAmount", width: 18 },
+            { header: "Paid Amount (SAR)", key: "paidAmount", width: 18 },
+            { header: "Dues (SAR)", key: "dues", width: 15 },
+          ],
+          "bills-report"
+        );
+        break;
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Reports</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Reports</h1>
+        {reportData && (
+          <Button onClick={downloadExcel}>
+            <Download className="h-4 w-4 mr-2" />
+            Download Excel
+          </Button>
+        )}
+      </div>
 
       <div className="bg-white rounded-lg shadow mb-6">
         <div className="border-b border-gray-200">

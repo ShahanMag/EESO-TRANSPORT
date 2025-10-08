@@ -36,7 +36,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
         <Image
           src="/images/Logo.jpeg"
           alt="EESA Transport Co Logo"
-          width={60}
+          width={110}
           height={60}
           className="rounded-lg"
         />
