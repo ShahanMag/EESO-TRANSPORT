@@ -484,46 +484,67 @@ export default function EmployeesPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Type
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Assigned Vehicles
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredEmployees.map((employee) => (
-              <tr key={employee._id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {employee.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {employee.iqamaId}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {employee.phone}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <Badge variant={employee.type === "agent" ? "default" : "secondary"}>
-                    {employee.type === "agent" ? "Agent" : "Employee"}
-                  </Badge>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDialog(employee)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(employee._id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {filteredEmployees.map((employee) => {
+              // Get vehicles assigned to this employee
+              const assignedVehicles = vehicles
+                .filter((v) => {
+                  const empId = typeof v.employeeId === 'object' && v.employeeId !== null
+                    ? (v.employeeId as any)._id
+                    : v.employeeId;
+                  return empId === employee._id;
+                })
+                .map((v) => v.number)
+                .join(", ");
+
+              return (
+                <tr key={employee._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {employee.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {employee.iqamaId}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {employee.phone}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <Badge variant={employee.type === "agent" ? "default" : "secondary"}>
+                      {employee.type === "agent" ? "Agent" : "Employee"}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {assignedVehicles || (
+                      <span className="text-gray-400 italic">No vehicles</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDialog(employee)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(employee._id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {filteredEmployees.length === 0 && (
