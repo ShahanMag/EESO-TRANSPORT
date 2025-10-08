@@ -455,25 +455,25 @@ export default function VehiclesPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Total Vehicles</p>
-          <p className="text-2xl font-bold text-purple-600">{vehicles.length}</p>
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-purple-700">Total Vehicles</p>
+          <p className="text-2xl font-bold text-purple-900">{vehicles.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Assigned</p>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-green-700">Assigned</p>
+          <p className="text-2xl font-bold text-green-900">
             {vehicles.filter((v) => v.employeeId).length}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Unassigned</p>
-          <p className="text-2xl font-bold text-orange-600">
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-amber-700">Unassigned</p>
+          <p className="text-2xl font-bold text-amber-900">
             {vehicles.filter((v) => !v.employeeId).length}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Search Results</p>
-          <p className="text-2xl font-bold text-blue-600">{filteredVehicles.length}</p>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-blue-700">Search Results</p>
+          <p className="text-2xl font-bold text-blue-900">{filteredVehicles.length}</p>
         </div>
       </div>
 

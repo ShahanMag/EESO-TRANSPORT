@@ -434,25 +434,25 @@ export default function EmployeesPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Total Employees</p>
-          <p className="text-2xl font-bold text-blue-600">{employees.length}</p>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-blue-700">Total Employees</p>
+          <p className="text-2xl font-bold text-blue-900">{employees.length}</p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Employees</p>
-          <p className="text-2xl font-bold text-green-600">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-green-700">Employees</p>
+          <p className="text-2xl font-bold text-green-900">
             {employees.filter((e) => e.type === "employee").length}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Agents</p>
-          <p className="text-2xl font-bold text-purple-600">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-purple-700">Agents</p>
+          <p className="text-2xl font-bold text-purple-900">
             {employees.filter((e) => e.type === "agent").length}
           </p>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Search Results</p>
-          <p className="text-2xl font-bold text-orange-600">{filteredEmployees.length}</p>
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
+          <p className="text-sm font-medium text-amber-700">Search Results</p>
+          <p className="text-2xl font-bold text-amber-900">{filteredEmployees.length}</p>
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart";
+import { ChartCarousel } from "@/components/charts/chart-carousel";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
 interface Installment {
@@ -266,26 +267,25 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Income & Expense Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <IncomeExpenseChart bills={filteredBills} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Vehicle Payments Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <VehiclePaymentsChart payments={filteredPayments} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Charts Section - Auto-Rotating Carousel */}
+      <Card>
+        <CardContent className="pt-6">
+          <ChartCarousel
+            charts={[
+              {
+                title: "Income & Expense Trends",
+                component: <IncomeExpenseChart bills={filteredBills} />,
+              },
+              {
+                title: "Vehicle Payments Overview",
+                component: <VehiclePaymentsChart payments={filteredPayments} />,
+              },
+            ]}
+            autoRotate={true}
+            intervalMs={5000}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Vehicle Payments */}

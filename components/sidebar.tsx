@@ -18,11 +18,9 @@ const topNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Vehicles", href: "/vehicles", icon: Car },
-];
-
-const reportsNavigation = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
+
 
 const incomeExpenseNavigation = [
   { name: "Income & Expense", href: "/bills", icon: FileText },
@@ -71,36 +69,11 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
             </Link>
           );
         })}
-
-        {/* Divider */}
-        <div className="h-px bg-gray-800 my-4" />
-
-        {/* Reports Navigation */}
-        {reportsNavigation.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
-
         {/* Divider */}
         <div className="h-px bg-gray-800 my-4" />
 
         {/* Financial Section */}
-        <div className="pb-2">
+        <div className="pb-2 pt-10">
           <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Financial
           </h3>
