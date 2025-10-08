@@ -63,9 +63,27 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const vehicle = await Vehicle.findByIdAndUpdate(id, body, {
+
+    // Prepare update data with all fields
+    const updateData: any = {
+      number: body.number,
+      name: body.name,
+      employeeId: body.employeeId === null || body.employeeId === "unassigned" ? null : body.employeeId,
+    };
+
+    // Add optional fields if provided
+    if (body.serialNumber !== undefined) updateData.serialNumber = body.serialNumber;
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.model !== undefined) updateData.model = body.model;
+    if (body.vehicleAmount !== undefined) updateData.vehicleAmount = body.vehicleAmount;
+    if (body.startDate !== undefined) updateData.startDate = body.startDate;
+    if (body.contractExpiry !== undefined) updateData.contractExpiry = body.contractExpiry;
+    if (body.description !== undefined) updateData.description = body.description;
+
+    const vehicle = await Vehicle.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
+      strict: false, // Allow fields not in schema (shouldn't be needed but helps with updates)
     }).populate("employeeId", "name type");
 
     if (!vehicle) {

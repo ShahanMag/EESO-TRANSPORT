@@ -60,9 +60,22 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const employee = await Employee.findByIdAndUpdate(id, body, {
+
+    // Prepare update data with all fields
+    const updateData: any = {
+      name: body.name,
+      iqamaId: body.iqamaId,
+      phone: body.phone,
+      type: body.type,
+    };
+
+    // Add optional fields if provided
+    if (body.joinDate !== undefined) updateData.joinDate = body.joinDate;
+
+    const employee = await Employee.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
+      strict: false, // Allow fields not in schema (shouldn't be needed but helps with updates)
     });
 
     if (!employee) {
