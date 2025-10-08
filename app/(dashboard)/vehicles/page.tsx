@@ -216,25 +216,41 @@ export default function VehiclesPage() {
     }
   }
 
-  function handleOpenDialog(vehicle?: Vehicle) {
+  async function handleOpenDialog(vehicle?: Vehicle) {
     if (vehicle) {
-      setEditingVehicle(vehicle);
-      setFormData({
-        number: vehicle.number,
-        name: vehicle.name,
-        serialNumber: vehicle.serialNumber || "",
-        type: vehicle.type || "private",
-        model: vehicle.model || "",
-        vehicleAmount: vehicle.vehicleAmount?.toString() || "",
-        startDate: vehicle.startDate
-          ? new Date(vehicle.startDate).toISOString().split("T")[0]
-          : "",
-        contractExpiry: vehicle.contractExpiry
-          ? new Date(vehicle.contractExpiry).toISOString().split("T")[0]
-          : "",
-        description: vehicle.description || "",
-        employeeId: vehicle.employeeId?._id || "unassigned",
-      });
+      // Fetch complete vehicle data from API
+      try {
+        const res = await fetch(`/api/vehicles/${vehicle._id}`);
+        const data = await res.json();
+
+        if (data.success) {
+          const fullVehicle = data.data;
+          setEditingVehicle(fullVehicle);
+          setFormData({
+            number: fullVehicle.number,
+            name: fullVehicle.name,
+            serialNumber: fullVehicle.serialNumber || "",
+            type: fullVehicle.type || "private",
+            model: fullVehicle.model || "",
+            vehicleAmount: fullVehicle.vehicleAmount?.toString() || "",
+            startDate: fullVehicle.startDate
+              ? new Date(fullVehicle.startDate).toISOString().split("T")[0]
+              : "",
+            contractExpiry: fullVehicle.contractExpiry
+              ? new Date(fullVehicle.contractExpiry).toISOString().split("T")[0]
+              : "",
+            description: fullVehicle.description || "",
+            employeeId: fullVehicle.employeeId?._id || fullVehicle.employeeId || "unassigned",
+          });
+        } else {
+          toast.error("Failed to fetch vehicle details");
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching vehicle:", error);
+        toast.error("Error loading vehicle data");
+        return;
+      }
     } else {
       setEditingVehicle(null);
       setFormData({

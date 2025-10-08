@@ -229,29 +229,45 @@ export default function EmployeesPage() {
     }
   }
 
-  function handleOpenDialog(employee?: Employee) {
+  async function handleOpenDialog(employee?: Employee) {
     if (employee) {
-      setEditingEmployee(employee);
-      setFormData({
-        name: employee.name,
-        iqamaId: employee.iqamaId,
-        phone: employee.phone,
-        type: employee.type,
-        joinDate: employee.joinDate
-          ? new Date(employee.joinDate).toISOString().split("T")[0]
-          : "",
-      });
-      // Load vehicles assigned to this employee
-      const assignedVehicles = vehicles
-        .filter((v) => {
-          // Handle both populated and non-populated employeeId
-          const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-            ? (v.employeeId as any)._id
-            : v.employeeId;
-          return empId === employee._id;
-        })
-        .map((v) => v._id);
-      setSelectedVehicles(assignedVehicles);
+      // Fetch complete employee data from API
+      try {
+        const res = await fetch(`/api/employees/${employee._id}`);
+        const data = await res.json();
+
+        if (data.success) {
+          const fullEmployee = data.data;
+          setEditingEmployee(fullEmployee);
+          setFormData({
+            name: fullEmployee.name,
+            iqamaId: fullEmployee.iqamaId,
+            phone: fullEmployee.phone,
+            type: fullEmployee.type,
+            joinDate: fullEmployee.joinDate
+              ? new Date(fullEmployee.joinDate).toISOString().split("T")[0]
+              : "",
+          });
+          // Load vehicles assigned to this employee
+          const assignedVehicles = vehicles
+            .filter((v) => {
+              // Handle both populated and non-populated employeeId
+              const empId = typeof v.employeeId === 'object' && v.employeeId !== null
+                ? (v.employeeId as any)._id
+                : v.employeeId;
+              return empId === fullEmployee._id;
+            })
+            .map((v) => v._id);
+          setSelectedVehicles(assignedVehicles);
+        } else {
+          toast.error("Failed to fetch employee details");
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching employee:", error);
+        toast.error("Error loading employee data");
+        return;
+      }
     } else {
       setEditingEmployee(null);
       setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
