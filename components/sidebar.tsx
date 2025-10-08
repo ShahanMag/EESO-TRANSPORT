@@ -20,13 +20,13 @@ const topNavigation = [
   { name: "Vehicles", href: "/vehicles", icon: Car },
 ];
 
+const reportsNavigation = [
+  { name: "Reports", href: "/reports", icon: BarChart3 },
+];
+
 const incomeExpenseNavigation = [
   { name: "Income & Expense", href: "/bills", icon: FileText },
   { name: "I&E Reports", href: "/income-expense-reports", icon: BarChart3 },
-];
-
-const bottomNavigation = [
-  { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
 interface SidebarProps {
@@ -75,6 +75,30 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
         {/* Divider */}
         <div className="h-px bg-gray-800 my-4" />
 
+        {/* Reports Navigation */}
+        {reportsNavigation.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={onLinkClick}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-gray-800 text-white"
+                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.name}
+            </Link>
+          );
+        })}
+
+        {/* Divider */}
+        <div className="h-px bg-gray-800 my-4" />
+
         {/* Financial Section */}
         <div className="pb-2">
           <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -100,30 +124,6 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
             );
           })}
         </div>
-
-        {/* Divider */}
-        <div className="h-px bg-gray-800 my-4" />
-
-        {/* Bottom Navigation */}
-        {bottomNavigation.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          );
-        })}
       </nav>
 
       {/* Support Section */}
