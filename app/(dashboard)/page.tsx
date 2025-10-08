@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Car, CreditCard, FileText, Calendar, DollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Car, CreditCard, FileText, Calendar, DollarSign, ArrowRight } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -291,10 +292,21 @@ export default function DashboardPage() {
         {/* Recent Vehicle Payments */}
         <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
           <CardHeader>
-            <CardTitle className="flex items-center text-indigo-900">
-              <CreditCard className="h-5 w-5 mr-2 text-indigo-700" />
-              Recent Vehicle Payments
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-indigo-900">
+                <CreditCard className="h-5 w-5 mr-2 text-indigo-700" />
+                Recent Vehicle Payments
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/vehicles')}
+                className="text-indigo-700 hover:text-indigo-900 hover:bg-indigo-200"
+              >
+                View All
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentPayments.length > 0 ? (
@@ -349,10 +361,21 @@ export default function DashboardPage() {
         {/* Recent Income & Expense */}
         <Card className="bg-gradient-to-br from-rose-50 to-rose-100 border-rose-200">
           <CardHeader>
-            <CardTitle className="flex items-center text-rose-900">
-              <FileText className="h-5 w-5 mr-2 text-rose-700" />
-              Recent Transactions
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center text-rose-900">
+                <FileText className="h-5 w-5 mr-2 text-rose-700" />
+                Recent Transactions
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/bills')}
+                className="text-rose-700 hover:text-rose-900 hover:bg-rose-200"
+              >
+                View All
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {recentBills.length > 0 ? (
