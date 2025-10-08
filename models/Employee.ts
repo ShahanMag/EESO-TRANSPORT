@@ -5,6 +5,7 @@ export interface IEmployee extends Document {
   iqamaId: string;
   phone: string;
   type: "employee" | "agent";
+  joinDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -44,6 +45,9 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
         values: ["employee", "agent"],
         message: "Type must be either employee or agent",
       },
+    },
+    joinDate: {
+      type: Date,
     },
   },
   {

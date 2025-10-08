@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
@@ -47,6 +48,7 @@ export default function BillsPage() {
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [formData, setFormData] = useState({
@@ -82,6 +84,7 @@ export default function BillsPage() {
 
   async function fetchBills() {
     try {
+      setLoading(true);
       const res = await fetch("/api/bills");
       const data = await res.json();
       if (data.success) {
@@ -89,6 +92,8 @@ export default function BillsPage() {
       }
     } catch (error) {
       console.error("Error fetching bills:", error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -109,7 +114,7 @@ export default function BillsPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Bill name is required";
+      newErrors.name = "Transaction name is required";
     }
 
     const totalAmount = parseFloat(formData.totalAmount);
@@ -155,9 +160,15 @@ export default function BillsPage() {
       const data = await res.json();
 
       if (data.success) {
+        toast.success(
+          editingBill
+            ? "Transaction updated successfully"
+            : "Transaction created successfully"
+        );
         fetchBills();
         handleCloseDialog();
       } else {
+        toast.error(data.error || "Failed to save transaction");
         setErrors({ submit: data.error });
       }
     } catch (error) {
@@ -167,17 +178,21 @@ export default function BillsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this bill?")) return;
+    if (!confirm("Are you sure you want to delete this transaction?")) return;
 
     try {
       const res = await fetch(`/api/bills/${id}`, { method: "DELETE" });
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Transaction deleted successfully");
         fetchBills();
+      } else {
+        toast.error(data.error || "Failed to delete transaction");
       }
     } catch (error) {
       console.error("Error deleting bill:", error);
+      toast.error("An error occurred while deleting transaction");
     }
   }
 
@@ -225,13 +240,17 @@ export default function BillsPage() {
   const totalPaid = filteredBills.reduce((sum, bill) => sum + bill.paidAmount, 0);
   const totalDues = totalAmount - totalPaid;
 
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Bills</h1>
+        <h1 className="text-3xl font-bold">Income & Expense</h1>
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Bill
+          Add Transaction
         </Button>
       </div>
 
@@ -278,7 +297,7 @@ export default function BillsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by bill name..."
+            placeholder="Search transactions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -289,7 +308,7 @@ export default function BillsPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Bills</SelectItem>
+            <SelectItem value="all">All Transactions</SelectItem>
             <SelectItem value="income">Income</SelectItem>
             <SelectItem value="expense">Expense</SelectItem>
           </SelectContent>
@@ -301,7 +320,7 @@ export default function BillsPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Bill Name
+                Transaction Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Type
@@ -379,14 +398,14 @@ export default function BillsPage() {
           </tbody>
         </table>
         {filteredBills.length === 0 && (
-          <div className="text-center py-12 text-gray-500">No bills found</div>
+          <div className="text-center py-12 text-gray-500">No transactions found</div>
         )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingBill ? "Edit Bill" : "Add Bill"}</DialogTitle>
+            <DialogTitle>{editingBill ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
@@ -408,13 +427,14 @@ export default function BillsPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="name">Bill Name</Label>
+                <Label htmlFor="name">Transaction Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
+                  placeholder="e.g., Office rent, Client payment"
                 />
                 {errors.name && (
                   <p className="text-sm text-red-500 mt-1">{errors.name}</p>

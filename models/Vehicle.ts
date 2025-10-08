@@ -3,6 +3,13 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IVehicle extends Document {
   number: string;
   name: string;
+  serialNumber?: string;
+  type: "private" | "public";
+  model?: string;
+  vehicleAmount?: number;
+  startDate?: Date;
+  contractExpiry?: Date;
+  description?: string;
   employeeId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -19,6 +26,37 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
     name: {
       type: String,
       required: [true, "Vehicle name is required"],
+      trim: true,
+    },
+    serialNumber: {
+      type: String,
+      trim: true,
+    },
+    type: {
+      type: String,
+      required: [true, "Vehicle type is required"],
+      enum: {
+        values: ["private", "public"],
+        message: "Type must be either private or public",
+      },
+      default: "private",
+    },
+    model: {
+      type: String,
+      trim: true,
+    },
+    vehicleAmount: {
+      type: Number,
+      min: [0, "Vehicle amount must be positive"],
+    },
+    startDate: {
+      type: Date,
+    },
+    contractExpiry: {
+      type: Date,
+    },
+    description: {
+      type: String,
       trim: true,
     },
     employeeId: {

@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
 interface Employee {
@@ -43,6 +44,7 @@ export default function EmployeesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -50,6 +52,7 @@ export default function EmployeesPage() {
     iqamaId: "",
     phone: "+966",
     type: "employee" as "employee" | "agent",
+    joinDate: "",
   });
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -71,6 +74,7 @@ export default function EmployeesPage() {
 
   async function fetchEmployees() {
     try {
+      setLoading(true);
       const res = await fetch("/api/employees");
       const data = await res.json();
       if (data.success) {
@@ -78,6 +82,8 @@ export default function EmployeesPage() {
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -125,7 +131,13 @@ export default function EmployeesPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          iqamaId: formData.iqamaId,
+          phone: formData.phone,
+          type: formData.type,
+          joinDate: formData.joinDate ? new Date(formData.joinDate) : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -148,7 +160,8 @@ export default function EmployeesPage() {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                ...vehicle,
+                number: vehicle.number,
+                name: vehicle.name,
                 employeeId: null,
               }),
             });
@@ -159,17 +172,28 @@ export default function EmployeesPage() {
         for (const vehicleId of selectedVehicles) {
           const vehicle = vehicles.find((v) => v._id === vehicleId);
           if (vehicle) {
+            // Extract only the necessary fields to avoid passing populated objects
+            const empIdValue = typeof vehicle.employeeId === 'object' && vehicle.employeeId !== null
+              ? (vehicle.employeeId as any)._id
+              : vehicle.employeeId;
+
             await fetch(`/api/vehicles/${vehicleId}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                ...vehicle,
+                number: vehicle.number,
+                name: vehicle.name,
                 employeeId: employeeId,
               }),
             });
           }
         }
 
+        toast.success(
+          editingEmployee
+            ? "Employee updated successfully"
+            : "Employee created successfully"
+        );
         fetchEmployees();
         fetchVehicles();
         handleCloseDialog();
@@ -190,7 +214,10 @@ export default function EmployeesPage() {
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Employee deleted successfully");
         fetchEmployees();
+      } else {
+        toast.error(data.error || "Failed to delete employee");
       }
     } catch (error) {
       console.error("Error deleting employee:", error);
@@ -205,6 +232,9 @@ export default function EmployeesPage() {
         iqamaId: employee.iqamaId,
         phone: employee.phone,
         type: employee.type,
+        joinDate: (employee as any).joinDate
+          ? new Date((employee as any).joinDate).toISOString().split("T")[0]
+          : "",
       });
       // Load vehicles assigned to this employee
       const assignedVehicles = vehicles
@@ -219,7 +249,7 @@ export default function EmployeesPage() {
       setSelectedVehicles(assignedVehicles);
     } else {
       setEditingEmployee(null);
-      setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee" });
+      setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
       setSelectedVehicles([]);
     }
     setErrors({});
@@ -229,9 +259,13 @@ export default function EmployeesPage() {
   function handleCloseDialog() {
     setIsDialogOpen(false);
     setEditingEmployee(null);
-    setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee" });
+    setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
     setSelectedVehicles([]);
     setErrors({});
+  }
+
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
@@ -242,6 +276,29 @@ export default function EmployeesPage() {
           <Plus className="mr-2 h-4 w-4" />
           Add Employee
         </Button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Total Employees</p>
+          <p className="text-2xl font-bold text-blue-600">{employees.length}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Employees</p>
+          <p className="text-2xl font-bold text-green-600">
+            {employees.filter((e) => e.type === "employee").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Agents</p>
+          <p className="text-2xl font-bold text-purple-600">
+            {employees.filter((e) => e.type === "agent").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Search Results</p>
+          <p className="text-2xl font-bold text-orange-600">{filteredEmployees.length}</p>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -386,6 +443,17 @@ export default function EmployeesPage() {
                     <SelectItem value="agent">Agent</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label htmlFor="joinDate">Join Date</Label>
+                <Input
+                  id="joinDate"
+                  type="date"
+                  value={formData.joinDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, joinDate: e.target.value })
+                  }
+                />
               </div>
               <div>
                 <Label>Assign Vehicles (Optional)</Label>

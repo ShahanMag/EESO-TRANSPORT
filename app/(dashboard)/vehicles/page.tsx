@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 
 interface Vehicle {
@@ -36,10 +38,12 @@ interface Employee {
 }
 
 export default function VehiclesPage() {
+  const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
@@ -47,6 +51,13 @@ export default function VehiclesPage() {
   const [formData, setFormData] = useState({
     number: "",
     name: "",
+    serialNumber: "",
+    type: "private" as "private" | "public",
+    model: "",
+    vehicleAmount: "",
+    startDate: "",
+    contractExpiry: "",
+    description: "",
     employeeId: "unassigned",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -67,6 +78,7 @@ export default function VehiclesPage() {
 
   async function fetchVehicles() {
     try {
+      setLoading(true);
       const res = await fetch("/api/vehicles");
       const data = await res.json();
       if (data.success) {
@@ -77,6 +89,8 @@ export default function VehiclesPage() {
     } catch (error) {
       console.error("Error fetching vehicles:", error);
       toast.error("Error fetching vehicles");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -124,7 +138,19 @@ export default function VehiclesPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          number: formData.number,
+          name: formData.name,
+          serialNumber: formData.serialNumber || undefined,
+          type: formData.type,
+          model: formData.model || undefined,
+          vehicleAmount: formData.vehicleAmount
+            ? parseFloat(formData.vehicleAmount)
+            : undefined,
+          startDate: formData.startDate ? new Date(formData.startDate) : undefined,
+          contractExpiry: formData.contractExpiry
+            ? new Date(formData.contractExpiry)
+            : undefined,
+          description: formData.description || undefined,
           employeeId: formData.employeeId === "unassigned" ? null : formData.employeeId,
         }),
       });
@@ -185,11 +211,33 @@ export default function VehiclesPage() {
       setFormData({
         number: vehicle.number,
         name: vehicle.name,
+        serialNumber: (vehicle as any).serialNumber || "",
+        type: (vehicle as any).type || "private",
+        model: (vehicle as any).model || "",
+        vehicleAmount: (vehicle as any).vehicleAmount?.toString() || "",
+        startDate: (vehicle as any).startDate
+          ? new Date((vehicle as any).startDate).toISOString().split("T")[0]
+          : "",
+        contractExpiry: (vehicle as any).contractExpiry
+          ? new Date((vehicle as any).contractExpiry).toISOString().split("T")[0]
+          : "",
+        description: (vehicle as any).description || "",
         employeeId: vehicle.employeeId?._id || "unassigned",
       });
     } else {
       setEditingVehicle(null);
-      setFormData({ number: "", name: "", employeeId: "unassigned" });
+      setFormData({
+        number: "",
+        name: "",
+        serialNumber: "",
+        type: "private",
+        model: "",
+        vehicleAmount: "",
+        startDate: "",
+        contractExpiry: "",
+        description: "",
+        employeeId: "unassigned",
+      });
     }
     setErrors({});
     setIsDialogOpen(true);
@@ -198,8 +246,23 @@ export default function VehiclesPage() {
   function handleCloseDialog() {
     setIsDialogOpen(false);
     setEditingVehicle(null);
-    setFormData({ number: "", name: "", employeeId: "unassigned" });
+    setFormData({
+      number: "",
+      name: "",
+      serialNumber: "",
+      type: "private",
+      model: "",
+      vehicleAmount: "",
+      startDate: "",
+      contractExpiry: "",
+      description: "",
+      employeeId: "unassigned",
+    });
     setErrors({});
+  }
+
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
   }
 
   return (
@@ -210,6 +273,29 @@ export default function VehiclesPage() {
           <Plus className="mr-2 h-4 w-4" />
           Add Vehicle
         </Button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Total Vehicles</p>
+          <p className="text-2xl font-bold text-purple-600">{vehicles.length}</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Assigned</p>
+          <p className="text-2xl font-bold text-green-600">
+            {vehicles.filter((v) => v.employeeId).length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Unassigned</p>
+          <p className="text-2xl font-bold text-orange-600">
+            {vehicles.filter((v) => !v.employeeId).length}
+          </p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <p className="text-sm text-gray-600">Search Results</p>
+          <p className="text-2xl font-bold text-blue-600">{filteredVehicles.length}</p>
+        </div>
       </div>
 
       <div className="mb-4">
@@ -245,7 +331,11 @@ export default function VehiclesPage() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredVehicles.map((vehicle) => (
-              <tr key={vehicle._id} className="hover:bg-gray-50">
+              <tr
+                key={vehicle._id}
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => router.push(`/vehicles/${vehicle._id}`)}
+              >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {vehicle.number}
                 </td>
@@ -261,14 +351,20 @@ export default function VehiclesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleOpenDialog(vehicle)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDialog(vehicle);
+                    }}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteClick(vehicle._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(vehicle._id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -292,7 +388,11 @@ export default function VehiclesPage() {
           </div>
         ) : (
           filteredVehicles.map((vehicle) => (
-            <div key={vehicle._id} className="bg-white rounded-lg shadow p-4">
+            <div
+              key={vehicle._id}
+              className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => router.push(`/vehicles/${vehicle._id}`)}
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{vehicle.number}</h3>
@@ -305,14 +405,20 @@ export default function VehiclesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleOpenDialog(vehicle)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDialog(vehicle);
+                    }}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteClick(vehicle._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(vehicle._id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -324,43 +430,124 @@ export default function VehiclesPage() {
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingVehicle ? "Edit Vehicle" : "Add Vehicle"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="number">Vehicle Number</Label>
+                <Label htmlFor="number">
+                  Vehicle Number <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="number"
                   value={formData.number}
                   onChange={(e) =>
                     setFormData({ ...formData, number: e.target.value })
                   }
-                  placeholder="Enter vehicle number"
+                  placeholder="e.g., ABC-1234"
                 />
                 {errors.number && (
                   <p className="text-sm text-red-500 mt-1">{errors.number}</p>
                 )}
               </div>
               <div>
-                <Label htmlFor="name">Vehicle Name</Label>
+                <Label htmlFor="name">
+                  Vehicle Name <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
+                  placeholder="e.g., Toyota Camry"
                 />
                 {errors.name && (
                   <p className="text-sm text-red-500 mt-1">{errors.name}</p>
                 )}
               </div>
               <div>
-                <Label htmlFor="employeeId">Assigned Employee (Optional)</Label>
+                <Label htmlFor="serialNumber">Serial Number</Label>
+                <Input
+                  id="serialNumber"
+                  value={formData.serialNumber}
+                  onChange={(e) =>
+                    setFormData({ ...formData, serialNumber: e.target.value })
+                  }
+                  placeholder="e.g., SN123456"
+                />
+              </div>
+              <div>
+                <Label htmlFor="type">
+                  Type <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: "private" | "public") =>
+                    setFormData({ ...formData, type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="public">Public</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="model">Model</Label>
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  placeholder="e.g., 2024"
+                />
+              </div>
+              <div>
+                <Label htmlFor="vehicleAmount">Vehicle Amount (SAR)</Label>
+                <Input
+                  id="vehicleAmount"
+                  type="number"
+                  step="0.01"
+                  value={formData.vehicleAmount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, vehicleAmount: e.target.value })
+                  }
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="startDate">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, startDate: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="contractExpiry">Contract Expiry</Label>
+                <Input
+                  id="contractExpiry"
+                  type="date"
+                  value={formData.contractExpiry}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contractExpiry: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="employeeId">Assigned Employee</Label>
                 <Select
                   value={formData.employeeId}
                   onValueChange={(value) =>
@@ -380,8 +567,19 @@ export default function VehiclesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Additional notes or remarks"
+                />
+              </div>
               {errors.submit && (
-                <p className="text-sm text-red-500">{errors.submit}</p>
+                <p className="text-sm text-red-500 md:col-span-2">{errors.submit}</p>
               )}
             </div>
             <DialogFooter className="mt-6">

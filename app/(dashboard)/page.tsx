@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, Car, CreditCard, FileText, Calendar, DollarSign } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
+import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
 interface Installment {
@@ -39,6 +45,7 @@ interface Bill {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState({
     employees: 0,
     vehicles: 0,
@@ -48,10 +55,22 @@ export default function DashboardPage() {
 
   const [recentPayments, setRecentPayments] = useState<PaymentWithInstallments[]>([]);
   const [recentBills, setRecentBills] = useState<Bill[]>([]);
+  const [allPayments, setAllPayments] = useState<PaymentWithInstallments[]>([]);
+  const [allBills, setAllBills] = useState<Bill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({
+    from: "",
+    to: "",
+  });
 
   useEffect(() => {
-    fetchStats();
-    fetchRecentData();
+    async function loadData() {
+      setLoading(true);
+      await fetchStats();
+      await fetchRecentData();
+      setLoading(false);
+    }
+    loadData();
   }, []);
 
   async function fetchStats() {
@@ -84,20 +103,13 @@ export default function DashboardPage() {
 
   async function fetchRecentData() {
     try {
-      // Fetch recent payments
+      // Fetch all payments
       const paymentsRes = await fetch("/api/payments");
       const paymentsData = await paymentsRes.json();
 
       if (paymentsData.success) {
-        // Get last 3 payments with installments
-        const sortedPayments = paymentsData.data
-          .sort((a: Payment, b: Payment) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-          .slice(0, 3);
-
         const paymentsWithInstallments = await Promise.all(
-          sortedPayments.map(async (payment: Payment) => {
+          paymentsData.data.map(async (payment: Payment) => {
             const installmentsRes = await fetch(`/api/installments?paymentId=${payment._id}`);
             const installmentsData = await installmentsRes.json();
             const installments = installmentsData.success ? installmentsData.data : [];
@@ -110,14 +122,25 @@ export default function DashboardPage() {
             };
           })
         );
-        setRecentPayments(paymentsWithInstallments);
+
+        setAllPayments(paymentsWithInstallments);
+
+        // Get last 3 payments for recent display
+        const sortedPayments = paymentsWithInstallments
+          .sort((a: PaymentWithInstallments, b: PaymentWithInstallments) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime()
+          )
+          .slice(0, 3);
+        setRecentPayments(sortedPayments);
       }
 
-      // Fetch recent bills
+      // Fetch all bills
       const billsRes = await fetch("/api/bills");
       const billsData = await billsRes.json();
 
       if (billsData.success) {
+        setAllBills(billsData.data);
+
         const sortedBills = billsData.data
           .sort((a: Bill, b: Bill) =>
             new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -137,12 +160,60 @@ export default function DashboardPage() {
     return <Badge variant={variant}>{status}</Badge>;
   }
 
+  if (loading) {
+    return <LoadingSpinner fullScreen />;
+  }
+
+  // Filter data by date range
+  const filteredPayments = dateRange.from && dateRange.to
+    ? allPayments.filter((p) => {
+        const date = new Date(p.date);
+        return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
+      })
+    : allPayments;
+
+  const filteredBills = dateRange.from && dateRange.to
+    ? allBills.filter((b) => {
+        const date = new Date(b.date);
+        return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
+      })
+    : allBills;
+
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+
+        {/* Date Filter */}
+        <div className="flex items-center gap-4">
+          <div>
+            <Label htmlFor="dateFrom" className="text-xs">From</Label>
+            <Input
+              id="dateFrom"
+              type="date"
+              value={dateRange.from}
+              onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+              className="w-40"
+            />
+          </div>
+          <div>
+            <Label htmlFor="dateTo" className="text-xs">To</Label>
+            <Input
+              id="dateTo"
+              type="date"
+              value={dateRange.to}
+              onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+              className="w-40"
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card
+          className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/employees')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700">
               Total Employees
@@ -153,7 +224,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-blue-900">{stats.employees}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card
+          className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/vehicles')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
               Total Vehicles
@@ -164,7 +238,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-purple-900">{stats.vehicles}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card
+          className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/payments')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
               Payment Records
@@ -175,13 +252,37 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-green-900">{stats.payments}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+        <Card
+          className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 cursor-pointer hover:shadow-lg transition-shadow"
+          onClick={() => router.push('/bills')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">Total Bills</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-700">Income & Expense</CardTitle>
             <FileText className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-900">{stats.bills}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Income & Expense Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <IncomeExpenseChart bills={filteredBills} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Vehicle Payments Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VehiclePaymentsChart payments={filteredPayments} />
           </CardContent>
         </Card>
       </div>
@@ -245,12 +346,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Bills */}
+        {/* Recent Income & Expense */}
         <Card className="bg-gradient-to-br from-rose-50 to-rose-100 border-rose-200">
           <CardHeader>
             <CardTitle className="flex items-center text-rose-900">
               <FileText className="h-5 w-5 mr-2 text-rose-700" />
-              Recent Bills
+              Recent Transactions
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -297,7 +398,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="bg-white rounded-lg p-8 text-center text-gray-500 border border-rose-200">
-                No recent bills
+                No recent transactions
               </div>
             )}
           </CardContent>
