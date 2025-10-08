@@ -19,15 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Upload, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { exportToExcel } from "@/lib/excel-utils";
 
 interface Vehicle {
   _id: string;
   number: string;
   name: string;
+  serialNumber?: string;
+  type: "private" | "public";
+  model?: string;
+  vehicleAmount?: number;
+  startDate?: string;
+  contractExpiry?: string;
+  description?: string;
   employeeId: { _id: string; name: string; type: string } | null;
 }
 
@@ -61,6 +70,8 @@ export default function VehiclesPage() {
     employeeId: "unassigned",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -211,17 +222,17 @@ export default function VehiclesPage() {
       setFormData({
         number: vehicle.number,
         name: vehicle.name,
-        serialNumber: (vehicle as any).serialNumber || "",
-        type: (vehicle as any).type || "private",
-        model: (vehicle as any).model || "",
-        vehicleAmount: (vehicle as any).vehicleAmount?.toString() || "",
-        startDate: (vehicle as any).startDate
-          ? new Date((vehicle as any).startDate).toISOString().split("T")[0]
+        serialNumber: vehicle.serialNumber || "",
+        type: vehicle.type || "private",
+        model: vehicle.model || "",
+        vehicleAmount: vehicle.vehicleAmount?.toString() || "",
+        startDate: vehicle.startDate
+          ? new Date(vehicle.startDate).toISOString().split("T")[0]
           : "",
-        contractExpiry: (vehicle as any).contractExpiry
-          ? new Date((vehicle as any).contractExpiry).toISOString().split("T")[0]
+        contractExpiry: vehicle.contractExpiry
+          ? new Date(vehicle.contractExpiry).toISOString().split("T")[0]
           : "",
-        description: (vehicle as any).description || "",
+        description: vehicle.description || "",
         employeeId: vehicle.employeeId?._id || "unassigned",
       });
     } else {
@@ -261,6 +272,152 @@ export default function VehiclesPage() {
     setErrors({});
   }
 
+  function downloadTemplate() {
+    const templateData = [
+      {
+        number: "ABC-1234",
+        name: "Toyota Camry",
+        serialNumber: "SN123456",
+        type: "private",
+        model: "2023",
+        vehicleAmount: 150000,
+        startDate: "2024-01-15",
+        contractExpiry: "2025-01-15",
+        description: "Company vehicle for senior management",
+        employeeId: "",
+      },
+      {
+        number: "XYZ-5678",
+        name: "Honda Accord",
+        serialNumber: "SN789012",
+        type: "public",
+        model: "2022",
+        vehicleAmount: 120000,
+        startDate: "2024-02-01",
+        contractExpiry: "2025-02-01",
+        description: "Vehicle for field operations",
+        employeeId: "",
+      },
+    ];
+
+    const columns = [
+      { header: "Vehicle Number", key: "number", width: 18 },
+      { header: "Vehicle Name", key: "name", width: 25 },
+      { header: "Serial Number", key: "serialNumber", width: 18 },
+      { header: "Type (private/public)", key: "type", width: 20 },
+      { header: "Model", key: "model", width: 15 },
+      { header: "Vehicle Amount (SAR)", key: "vehicleAmount", width: 20 },
+      { header: "Start Date (YYYY-MM-DD)", key: "startDate", width: 20 },
+      { header: "Contract Expiry (YYYY-MM-DD)", key: "contractExpiry", width: 25 },
+      { header: "Description", key: "description", width: 35 },
+      { header: "Employee Iqama ID (Optional)", key: "employeeId", width: 25 },
+    ];
+
+    exportToExcel(templateData, columns, "vehicle-template");
+    toast.success("Template downloaded successfully");
+  }
+
+  async function handleBulkUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const row of jsonData as any[]) {
+        try {
+          // Validate required fields
+          if (!row["Vehicle Number"] || !row["Vehicle Name"]) {
+            errors.push(`Row with number "${row["Vehicle Number"] || "unknown"}" is missing required fields`);
+            errorCount++;
+            continue;
+          }
+
+          const type = (row["Type (private/public)"] || "private").toLowerCase();
+          const vehicleAmount = row["Vehicle Amount (SAR)"];
+          const startDate = row["Start Date (YYYY-MM-DD)"];
+          const contractExpiry = row["Contract Expiry (YYYY-MM-DD)"];
+          const employeeIqamaId = row["Employee Iqama ID (Optional)"];
+
+          // Validate type
+          if (type !== "private" && type !== "public") {
+            errors.push(`Row "${row["Vehicle Number"]}": Type must be "private" or "public"`);
+            errorCount++;
+            continue;
+          }
+
+          // Find employee by Iqama ID if provided
+          let employeeId = null;
+          if (employeeIqamaId) {
+            const employee = employees.find((e) => e._id === employeeIqamaId || (e as any).iqamaId === employeeIqamaId);
+            if (employee) {
+              employeeId = employee._id;
+            } else {
+              errors.push(`Row "${row["Vehicle Number"]}": Employee with Iqama ID "${employeeIqamaId}" not found`);
+            }
+          }
+
+          const res = await fetch("/api/vehicles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              number: row["Vehicle Number"],
+              name: row["Vehicle Name"],
+              serialNumber: row["Serial Number"] || undefined,
+              type: type,
+              model: row["Model"] || undefined,
+              vehicleAmount: vehicleAmount ? parseFloat(vehicleAmount.toString()) : undefined,
+              startDate: startDate ? new Date(startDate) : undefined,
+              contractExpiry: contractExpiry ? new Date(contractExpiry) : undefined,
+              description: row["Description"] || undefined,
+              employeeId: employeeId,
+            }),
+          });
+
+          const result = await res.json();
+
+          if (result.success) {
+            successCount++;
+          } else {
+            errors.push(`Row "${row["Vehicle Number"]}": ${result.error}`);
+            errorCount++;
+          }
+        } catch (error) {
+          errors.push(`Row "${row["Vehicle Number"]}": ${error}`);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully uploaded ${successCount} vehicle(s)`);
+        fetchVehicles();
+      }
+
+      if (errorCount > 0) {
+        toast.error(`Failed to upload ${errorCount} vehicle(s). Check console for details.`);
+        console.error("Bulk upload errors:", errors);
+      }
+
+      setIsBulkUploadDialogOpen(false);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Error processing file. Please check the format.");
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  }
+
   if (loading) {
     return <LoadingSpinner fullScreen />;
   }
@@ -269,10 +426,16 @@ export default function VehiclesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Vehicles</h1>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Vehicle
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Vehicle
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -591,6 +754,85 @@ export default function VehiclesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Vehicles</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
+                <li>Download the Excel template below</li>
+                <li>Fill in vehicle details following the format in the template</li>
+                <li>Make sure all required fields are filled correctly</li>
+                <li>Upload the completed Excel file</li>
+              </ol>
+            </div>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+              <div className="text-center space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadTemplate}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Template
+                </Button>
+
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleBulkUpload}
+                    disabled={isUploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    id="bulk-upload-input"
+                  />
+                  <Button
+                    type="button"
+                    disabled={isUploading}
+                    className="w-full"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isUploading ? "Uploading..." : "Upload Excel File"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>Vehicle Number:</strong> Required - Unique identifier (e.g., ABC-1234)</p>
+                <p><strong>Vehicle Name:</strong> Required - Vehicle model/name (e.g., Toyota Camry)</p>
+                <p><strong>Serial Number:</strong> Optional - Vehicle serial number</p>
+                <p><strong>Type:</strong> Either "private" or "public" (default: private)</p>
+                <p><strong>Model:</strong> Optional - Year or model info (e.g., 2023)</p>
+                <p><strong>Vehicle Amount:</strong> Optional - Price in SAR (e.g., 150000)</p>
+                <p><strong>Start Date:</strong> Optional - Format YYYY-MM-DD (e.g., 2024-01-15)</p>
+                <p><strong>Contract Expiry:</strong> Optional - Format YYYY-MM-DD (e.g., 2025-01-15)</p>
+                <p><strong>Description:</strong> Optional - Additional notes</p>
+                <p><strong>Employee Iqama ID:</strong> Optional - Assign to employee by Iqama ID</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBulkUploadDialogOpen(false)}
+              disabled={isUploading}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

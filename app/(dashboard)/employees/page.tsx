@@ -19,10 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, X } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Upload, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { exportToExcel } from "@/lib/excel-utils";
 
 interface Employee {
   _id: string;
@@ -30,6 +32,7 @@ interface Employee {
   iqamaId: string;
   phone: string;
   type: "employee" | "agent";
+  joinDate?: string;
 }
 
 interface Vehicle {
@@ -56,6 +59,8 @@ export default function EmployeesPage() {
   });
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -232,8 +237,8 @@ export default function EmployeesPage() {
         iqamaId: employee.iqamaId,
         phone: employee.phone,
         type: employee.type,
-        joinDate: (employee as any).joinDate
-          ? new Date((employee as any).joinDate).toISOString().split("T")[0]
+        joinDate: employee.joinDate
+          ? new Date(employee.joinDate).toISOString().split("T")[0]
           : "",
       });
       // Load vehicles assigned to this employee
@@ -264,6 +269,134 @@ export default function EmployeesPage() {
     setErrors({});
   }
 
+  function downloadTemplate() {
+    const templateData = [
+      {
+        name: "John Doe",
+        iqamaId: "1234567890",
+        phone: "+966501234567",
+        type: "employee",
+        joinDate: "2024-01-15",
+      },
+      {
+        name: "Jane Smith",
+        iqamaId: "9876543210",
+        phone: "+966509876543",
+        type: "agent",
+        joinDate: "2024-02-20",
+      },
+    ];
+
+    const columns = [
+      { header: "Name", key: "name", width: 25 },
+      { header: "Iqama ID (10 digits)", key: "iqamaId", width: 20 },
+      { header: "Phone (+966XXXXXXXXX)", key: "phone", width: 20 },
+      { header: "Type (employee/agent)", key: "type", width: 20 },
+      { header: "Join Date (YYYY-MM-DD)", key: "joinDate", width: 20 },
+    ];
+
+    exportToExcel(templateData, columns, "employee-template");
+    toast.success("Template downloaded successfully");
+  }
+
+  async function handleBulkUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const row of jsonData as any[]) {
+        try {
+          // Validate required fields
+          if (!row.Name || !row["Iqama ID (10 digits)"] || !row["Phone (+966XXXXXXXXX)"]) {
+            errors.push(`Row with name "${row.Name || "unknown"}" is missing required fields`);
+            errorCount++;
+            continue;
+          }
+
+          const iqamaId = row["Iqama ID (10 digits)"].toString();
+          const phone = row["Phone (+966XXXXXXXXX)"].toString();
+          const type = (row["Type (employee/agent)"] || "employee").toLowerCase();
+          const joinDate = row["Join Date (YYYY-MM-DD)"];
+
+          // Validate iqama ID
+          if (!/^\d{10}$/.test(iqamaId)) {
+            errors.push(`Row "${row.Name}": Iqama ID must be exactly 10 digits`);
+            errorCount++;
+            continue;
+          }
+
+          // Validate phone
+          if (!/^\+966\d{9}$/.test(phone)) {
+            errors.push(`Row "${row.Name}": Phone must be in format +966XXXXXXXXX`);
+            errorCount++;
+            continue;
+          }
+
+          // Validate type
+          if (type !== "employee" && type !== "agent") {
+            errors.push(`Row "${row.Name}": Type must be "employee" or "agent"`);
+            errorCount++;
+            continue;
+          }
+
+          const res = await fetch("/api/employees", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: row.Name,
+              iqamaId: iqamaId,
+              phone: phone,
+              type: type,
+              joinDate: joinDate ? new Date(joinDate) : undefined,
+            }),
+          });
+
+          const result = await res.json();
+
+          if (result.success) {
+            successCount++;
+          } else {
+            errors.push(`Row "${row.Name}": ${result.error}`);
+            errorCount++;
+          }
+        } catch (error) {
+          errors.push(`Row "${row.Name}": ${error}`);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully uploaded ${successCount} employee(s)`);
+        fetchEmployees();
+      }
+
+      if (errorCount > 0) {
+        toast.error(`Failed to upload ${errorCount} employee(s). Check console for details.`);
+        console.error("Bulk upload errors:", errors);
+      }
+
+      setIsBulkUploadDialogOpen(false);
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Error processing file. Please check the format.");
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  }
+
   if (loading) {
     return <LoadingSpinner fullScreen />;
   }
@@ -272,10 +405,16 @@ export default function EmployeesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Employees</h1>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Employee
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Bulk Upload
+          </Button>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Employee
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -520,6 +659,80 @@ export default function EmployeesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Employees</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
+                <li>Download the Excel template below</li>
+                <li>Fill in employee details following the format in the template</li>
+                <li>Make sure all required fields are filled correctly</li>
+                <li>Upload the completed Excel file</li>
+              </ol>
+            </div>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+              <div className="text-center space-y-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadTemplate}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Template
+                </Button>
+
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleBulkUpload}
+                    disabled={isUploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    id="bulk-upload-input"
+                  />
+                  <Button
+                    type="button"
+                    disabled={isUploading}
+                    className="w-full"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {isUploading ? "Uploading..." : "Upload Excel File"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>Name:</strong> Employee full name</p>
+                <p><strong>Iqama ID:</strong> Exactly 10 digits (e.g., 1234567890)</p>
+                <p><strong>Phone:</strong> Format +966XXXXXXXXX (e.g., +966501234567)</p>
+                <p><strong>Type:</strong> Either "employee" or "agent"</p>
+                <p><strong>Join Date:</strong> Format YYYY-MM-DD (e.g., 2024-01-15) - Optional</p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBulkUploadDialogOpen(false)}
+              disabled={isUploading}
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
