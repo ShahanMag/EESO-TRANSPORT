@@ -9,6 +9,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 interface Payment {
@@ -22,52 +23,49 @@ interface VehiclePaymentsChartProps {
 }
 
 export function VehiclePaymentsChart({ payments }: VehiclePaymentsChartProps) {
-  // Group payments by vehicle
-  const vehicleData = payments.reduce((acc: any, payment) => {
-    const vehicleKey = payment.vehicleId.number;
+  // Calculate total amounts across all vehicles
+  const totalAmount = payments.reduce((sum, payment) => sum + payment.totalAmount, 0);
+  const paidAmount = payments.reduce((sum, payment) => sum + (payment.paidAmount || 0), 0);
+  const dueAmount = totalAmount - paidAmount;
 
-    if (!acc[vehicleKey]) {
-      acc[vehicleKey] = {
-        name: payment.vehicleId.name,
-        total: 0,
-        paid: 0,
-      };
-    }
-
-    acc[vehicleKey].total += payment.totalAmount;
-    acc[vehicleKey].paid += payment.paidAmount || 0;
-
-    return acc;
-  }, {});
-
-  // Get top 5 vehicles by payment amount and format for Recharts
-  const sortedVehicles = Object.entries(vehicleData)
-    .sort(([, a]: any, [, b]: any) => b.total - a.total)
-    .slice(0, 5);
-
-  const chartData = sortedVehicles.map(([key, data]: any) => ({
-    vehicle: key,
-    "Total Amount": data.total,
-    "Paid Amount": data.paid,
-    "Due Amount": data.total - data.paid,
-  }));
+  // Format data for single bar chart
+  const chartData = [
+    {
+      category: "Total",
+      amount: totalAmount,
+      label: "Total Amount",
+    },
+    {
+      category: "Paid",
+      amount: paidAmount,
+      label: "Paid Amount",
+    },
+    {
+      category: "Due",
+      amount: dueAmount,
+      label: "Due Amount",
+    },
+  ];
 
   const formatCurrency = (value: number) => {
     return `SAR ${value.toLocaleString()}`;
   };
+
+  // Colors for each bar
+  const colors = ["#6366f1", "#22c55e", "#ef4444"]; // Indigo, Green, Red
 
   return (
     <div className="h-[350px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis
-            dataKey="vehicle"
+            dataKey="category"
             stroke="#6b7280"
-            style={{ fontSize: "12px" }}
+            style={{ fontSize: "14px", fontWeight: 600 }}
           />
           <YAxis
             stroke="#6b7280"
@@ -80,28 +78,23 @@ export function VehiclePaymentsChart({ payments }: VehiclePaymentsChartProps) {
               border: "1px solid #e5e7eb",
               borderRadius: "8px",
               boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+              padding: "12px",
             }}
-            formatter={(value: number) => formatCurrency(value)}
-          />
-          <Legend
-            wrapperStyle={{ fontSize: "14px", paddingTop: "10px" }}
-            iconType="circle"
-          />
-          <Bar
-            dataKey="Total Amount"
-            fill="#6366f1"
-            radius={[8, 8, 0, 0]}
+            formatter={(value: number, name: string, props: any) => [
+              formatCurrency(value),
+              props.payload.label
+            ]}
+            labelStyle={{ fontWeight: 600, marginBottom: "4px" }}
           />
           <Bar
-            dataKey="Paid Amount"
-            fill="#22c55e"
+            dataKey="amount"
             radius={[8, 8, 0, 0]}
-          />
-          <Bar
-            dataKey="Due Amount"
-            fill="#ef4444"
-            radius={[8, 8, 0, 0]}
-          />
+            maxBarSize={150}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index]} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
