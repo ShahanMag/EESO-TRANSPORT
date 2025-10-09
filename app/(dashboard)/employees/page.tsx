@@ -290,14 +290,14 @@ export default function EmployeesPage() {
       {
         name: "John Doe",
         iqamaId: "1234567890",
-        phone: "+966501234567",
+        phone: "966501234567",
         type: "employee",
         joinDate: "2024-01-15",
       },
       {
         name: "Jane Smith",
         iqamaId: "9876543210",
-        phone: "+966509876543",
+        phone: "966509876543",
         type: "agent",
         joinDate: "2024-02-20",
       },
@@ -306,7 +306,7 @@ export default function EmployeesPage() {
     const columns = [
       { header: "Name", key: "name", width: 25 },
       { header: "Iqama ID (10 digits)", key: "iqamaId", width: 20 },
-      { header: "Phone (+966XXXXXXXXX)", key: "phone", width: 20 },
+      { header: "Phone (966XXXXXXXXX)", key: "phone", width: 20 },
       { header: "Type (employee/agent)", key: "type", width: 20 },
       { header: "Join Date (YYYY-MM-DD)", key: "joinDate", width: 20 },
     ];
@@ -334,14 +334,14 @@ export default function EmployeesPage() {
       for (const row of jsonData as any[]) {
         try {
           // Validate required fields
-          if (!row.Name || !row["Iqama ID (10 digits)"] || !row["Phone (+966XXXXXXXXX)"]) {
+          if (!row.Name || !row["Iqama ID (10 digits)"] || !row["Phone (966XXXXXXXXX)"]) {
             errors.push(`Row with name "${row.Name || "unknown"}" is missing required fields`);
             errorCount++;
             continue;
           }
 
           const iqamaId = row["Iqama ID (10 digits)"].toString();
-          const phone = row["Phone (+966XXXXXXXXX)"].toString();
+          let phone = row["Phone (966XXXXXXXXX)"].toString().trim();
           const type = (row["Type (employee/agent)"] || "employee").toLowerCase();
           const joinDate = row["Join Date (YYYY-MM-DD)"];
 
@@ -352,9 +352,18 @@ export default function EmployeesPage() {
             continue;
           }
 
-          // Validate phone
+          // Validate and format phone - accept with or without +
+          // Remove any spaces or dashes
+          phone = phone.replace(/[\s-]/g, '');
+
+          // If phone starts with 966 but not +966, add the +
+          if (/^966\d{9}$/.test(phone)) {
+            phone = '+' + phone;
+          }
+
+          // Now validate the final format
           if (!/^\+966\d{9}$/.test(phone)) {
-            errors.push(`Row "${row.Name}": Phone must be in format +966XXXXXXXXX`);
+            errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
             errorCount++;
             continue;
           }
@@ -754,7 +763,7 @@ export default function EmployeesPage() {
               <div className="text-xs text-gray-600 space-y-1">
                 <p><strong>Name:</strong> Employee full name</p>
                 <p><strong>Iqama ID:</strong> Exactly 10 digits (e.g., 1234567890)</p>
-                <p><strong>Phone:</strong> Format +966XXXXXXXXX (e.g., +966501234567)</p>
+                <p><strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX (e.g., 966501234567)</p>
                 <p><strong>Type:</strong> Either "employee" or "agent"</p>
                 <p><strong>Join Date:</strong> Format YYYY-MM-DD (e.g., 2024-01-15) - Optional</p>
               </div>

@@ -58,6 +58,15 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
+
+    // Validate paidAmount <= totalAmount
+    if (body.paidAmount > body.totalAmount) {
+      return NextResponse.json(
+        { success: false, error: "Paid amount cannot exceed total amount" },
+        { status: 400 }
+      );
+    }
+
     const bill = await Bill.create(body);
 
     // Populate employee data
