@@ -34,7 +34,7 @@ interface Vehicle {
   name: string;
   serialNumber?: string;
   type: "private" | "public";
-  model?: string;
+  vehicleModel?: string;
   vehicleAmount?: number;
   startDate?: string;
   contractExpiry?: string;
@@ -349,7 +349,7 @@ export default function VehicleDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Model</p>
-              <p className="font-semibold">{vehicle.model || "N/A"}</p>
+              <p className="font-semibold">{vehicle.vehicleModel || "N/A"}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Vehicle Amount</p>

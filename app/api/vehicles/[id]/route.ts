@@ -74,7 +74,7 @@ export async function PUT(
     // Add optional fields if provided
     if (body.serialNumber !== undefined) updateData.serialNumber = body.serialNumber;
     if (body.type !== undefined) updateData.type = body.type;
-    if (body.model !== undefined) updateData.model = body.model;
+    if (body.vehicleModel !== undefined) updateData.vehicleModel = body.vehicleModel;
     if (body.vehicleAmount !== undefined) updateData.vehicleAmount = body.vehicleAmount;
     if (body.startDate !== undefined) updateData.startDate = body.startDate;
     if (body.contractExpiry !== undefined) updateData.contractExpiry = body.contractExpiry;

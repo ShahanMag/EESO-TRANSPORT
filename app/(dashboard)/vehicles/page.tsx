@@ -32,7 +32,7 @@ interface Vehicle {
   name: string;
   serialNumber?: string;
   type: "private" | "public";
-  model?: string;
+  vehicleModel?: string;
   vehicleAmount?: number;
   startDate?: string;
   contractExpiry?: string;
@@ -62,7 +62,7 @@ export default function VehiclesPage() {
     name: "",
     serialNumber: "",
     type: "private" as "private" | "public",
-    model: "",
+    vehicleModel: "",
     vehicleAmount: "",
     startDate: "",
     contractExpiry: "",
@@ -153,7 +153,7 @@ export default function VehiclesPage() {
           name: formData.name,
           serialNumber: formData.serialNumber || undefined,
           type: formData.type,
-          model: formData.model || undefined,
+          vehicleModel: formData.vehicleModel || undefined,
           vehicleAmount: formData.vehicleAmount
             ? parseFloat(formData.vehicleAmount)
             : undefined,
@@ -231,7 +231,7 @@ export default function VehiclesPage() {
             name: fullVehicle.name,
             serialNumber: fullVehicle.serialNumber || "",
             type: fullVehicle.type || "private",
-            model: fullVehicle.model || "",
+            vehicleModel: fullVehicle.vehicleModel || "",
             vehicleAmount: fullVehicle.vehicleAmount?.toString() || "",
             startDate: fullVehicle.startDate
               ? new Date(fullVehicle.startDate).toISOString().split("T")[0]
@@ -258,7 +258,7 @@ export default function VehiclesPage() {
         name: "",
         serialNumber: "",
         type: "private",
-        model: "",
+        vehicleModel: "",
         vehicleAmount: "",
         startDate: "",
         contractExpiry: "",
@@ -278,7 +278,7 @@ export default function VehiclesPage() {
       name: "",
       serialNumber: "",
       type: "private",
-      model: "",
+      vehicleModel: "",
       vehicleAmount: "",
       startDate: "",
       contractExpiry: "",
@@ -295,7 +295,7 @@ export default function VehiclesPage() {
         name: "Toyota Camry",
         serialNumber: "SN123456",
         type: "private",
-        model: "2023",
+        vehicleModel: "2023",
         vehicleAmount: 150000,
         startDate: "2024-01-15",
         contractExpiry: "2025-01-15",
@@ -307,7 +307,7 @@ export default function VehiclesPage() {
         name: "Honda Accord",
         serialNumber: "SN789012",
         type: "public",
-        model: "2022",
+        vehicleModel: "2022",
         vehicleAmount: 120000,
         startDate: "2024-02-01",
         contractExpiry: "2025-02-01",
@@ -321,7 +321,7 @@ export default function VehiclesPage() {
       { header: "Vehicle Name", key: "name", width: 25 },
       { header: "Serial Number", key: "serialNumber", width: 18 },
       { header: "Type (private/public)", key: "type", width: 20 },
-      { header: "Model", key: "model", width: 15 },
+      { header: "Model", key: "vehicleModel", width: 15 },
       { header: "Vehicle Amount (SAR)", key: "vehicleAmount", width: 20 },
       { header: "Start Date (YYYY-MM-DD)", key: "startDate", width: 20 },
       { header: "Contract Expiry (YYYY-MM-DD)", key: "contractExpiry", width: 25 },
@@ -390,7 +390,7 @@ export default function VehiclesPage() {
               name: row["Vehicle Name"],
               serialNumber: row["Serial Number"] || undefined,
               type: type,
-              model: row["Model"] || undefined,
+              vehicleModel: row["Model"] || undefined,
               vehicleAmount: vehicleAmount ? parseFloat(vehicleAmount.toString()) : undefined,
               startDate: startDate ? new Date(startDate) : undefined,
               contractExpiry: contractExpiry ? new Date(contractExpiry) : undefined,
@@ -680,12 +680,12 @@ export default function VehiclesPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="model">Model</Label>
+                <Label htmlFor="vehicleModel">Model</Label>
                 <Input
-                  id="model"
-                  value={formData.model}
+                  id="vehicleModel"
+                  value={formData.vehicleModel}
                   onChange={(e) =>
-                    setFormData({ ...formData, model: e.target.value })
+                    setFormData({ ...formData, vehicleModel: e.target.value })
                   }
                   placeholder="e.g., 2024"
                 />

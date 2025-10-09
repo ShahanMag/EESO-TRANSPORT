@@ -5,7 +5,7 @@ export interface IVehicle extends Document {
   name: string;
   serialNumber?: string;
   type: "private" | "public";
-  model?: string;
+  vehicleModel?: string;
   vehicleAmount?: number;
   startDate?: Date;
   contractExpiry?: Date;
@@ -41,7 +41,7 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
       },
       default: "private",
     },
-    model: {
+    vehicleModel: {
       type: String,
       trim: true,
     },
