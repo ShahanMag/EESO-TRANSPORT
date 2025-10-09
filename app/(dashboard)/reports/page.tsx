@@ -94,20 +94,65 @@ export default function ReportsPage() {
         break;
 
       case "vehicles":
-        const vehicleData = reportData.map((vehicle: any) => ({
-          number: vehicle.number,
-          name: vehicle.name,
-          assignedEmployee: vehicle.employeeId?.name || "Unassigned",
-        }));
-        exportToExcel(
-          vehicleData,
-          [
-            { header: "Vehicle Number", key: "number", width: 18 },
-            { header: "Vehicle Name", key: "name", width: 25 },
-            { header: "Assigned Employee", key: "assignedEmployee", width: 25 },
-          ],
-          "vehicle-report"
-        );
+        // Get all unique months from all vehicles
+        const allMonths = new Set<string>();
+        reportData.forEach((vehicle: any) => {
+          Object.keys(vehicle.paymentsByMonth || {}).forEach(month => allMonths.add(month));
+        });
+        const sortedMonths = Array.from(allMonths).sort();
+
+        // Prepare data with vehicle details and payments by month
+        const vehicleData = reportData.map((vehicle: any) => {
+          const row: any = {
+            number: vehicle.number,
+            name: vehicle.name,
+            iqamaId: vehicle.employeeId?.iqamaId || "N/A",
+            type: vehicle.type === "private" ? "Private" : "Public",
+            model: vehicle.vehicleModel || "N/A",
+            serialNumber: vehicle.serialNumber || "N/A",
+          };
+
+          // Add payment data for each month
+          sortedMonths.forEach(month => {
+            const monthData = vehicle.paymentsByMonth?.[month];
+            if (monthData) {
+              row[`${month}_total`] = monthData.totalAmount;
+              row[`${month}_paid`] = monthData.paidAmount;
+              row[`${month}_dues`] = monthData.dues;
+            } else {
+              row[`${month}_total`] = 0;
+              row[`${month}_paid`] = 0;
+              row[`${month}_dues`] = 0;
+            }
+          });
+
+          return row;
+        });
+
+        // Build columns array
+        const vehicleColumns = [
+          { header: "Vehicle Number", key: "number", width: 18 },
+          { header: "Vehicle Name", key: "name", width: 25 },
+          { header: "Iqama ID", key: "iqamaId", width: 15 },
+          { header: "Type", key: "type", width: 12 },
+          { header: "Model", key: "model", width: 12 },
+          { header: "Serial Number", key: "serialNumber", width: 18 },
+        ];
+
+        // Add columns for each month
+        sortedMonths.forEach(month => {
+          const [year, monthNum] = month.split('-');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const monthLabel = `${monthNames[parseInt(monthNum) - 1]} ${year}`;
+
+          vehicleColumns.push(
+            { header: `${monthLabel} - Total`, key: `${month}_total`, width: 15 },
+            { header: `${monthLabel} - Paid`, key: `${month}_paid`, width: 15 },
+            { header: `${monthLabel} - Dues`, key: `${month}_dues`, width: 15 }
+          );
+        });
+
+        exportToExcel(vehicleData, vehicleColumns, "vehicle-report");
         break;
 
       case "payments":
@@ -281,7 +326,7 @@ export default function ReportsPage() {
           {activeTab === "vehicles" && (
             <div>
               <h2 className="text-xl font-semibold mb-4">
-                Vehicle Report with Assigned Employees
+                Vehicle Report with Full Details and Monthly Payments
               </h2>
               <div className="bg-white rounded-lg shadow overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -294,24 +339,64 @@ export default function ReportsPage() {
                         Vehicle Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Assigned Employee
+                        Iqama ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Model
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Serial Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Payment Months
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData.map((vehicle: any) => (
-                      <tr key={vehicle._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {vehicle.number}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {vehicle.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {vehicle.employeeId?.name || "Unassigned"}
-                        </td>
-                      </tr>
-                    ))}
+                    {reportData.map((vehicle: any) => {
+                      const paymentMonths = Object.keys(vehicle.paymentsByMonth || {}).sort();
+                      return (
+                        <tr key={vehicle._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {vehicle.number}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {vehicle.name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {vehicle.employeeId?.iqamaId || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {vehicle.type === "private" ? "Private" : "Public"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {vehicle.vehicleModel || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {vehicle.serialNumber || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">
+                            {paymentMonths.length > 0 ? (
+                              <div className="space-y-1">
+                                {paymentMonths.map(month => {
+                                  const data = vehicle.paymentsByMonth[month];
+                                  return (
+                                    <div key={month} className="text-xs">
+                                      <strong>{month}:</strong> Total: {formatCurrency(data.totalAmount)}, Paid: {formatCurrency(data.paidAmount)}, Dues: {formatCurrency(data.dues)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No payments</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -24,7 +24,7 @@ const topNavigation = [
 
 const incomeExpenseNavigation = [
   { name: "Income & Expense", href: "/bills", icon: FileText },
-  { name: "I&E Reports", href: "/income-expense-reports", icon: BarChart3 },
+  { name: "Reports", href: "/income-expense-reports", icon: BarChart3 },
 ];
 
 interface SidebarProps {
