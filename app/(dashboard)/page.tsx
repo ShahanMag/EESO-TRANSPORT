@@ -105,25 +105,40 @@ export default function DashboardPage() {
 
   async function fetchRecentData() {
     try {
-      // Fetch all payments
-      const paymentsRes = await fetch("/api/payments");
-      const paymentsData = await paymentsRes.json();
+      // Fetch all payments and all installments in parallel
+      const [paymentsRes, installmentsRes] = await Promise.all([
+        fetch("/api/payments"),
+        fetch("/api/installments"),
+      ]);
+
+      const [paymentsData, allInstallmentsData] = await Promise.all([
+        paymentsRes.json(),
+        installmentsRes.json(),
+      ]);
 
       if (paymentsData.success) {
-        const paymentsWithInstallments = await Promise.all(
-          paymentsData.data.map(async (payment: Payment) => {
-            const installmentsRes = await fetch(`/api/installments?paymentId=${payment._id}`);
-            const installmentsData = await installmentsRes.json();
-            const installments = installmentsData.success ? installmentsData.data : [];
-            const paidAmount = installments.reduce((sum: number, inst: Installment) => sum + inst.amount, 0);
-            return {
-              ...payment,
-              installments,
-              paidAmount,
-              dues: payment.totalAmount - paidAmount,
-            };
-          })
-        );
+        // Group installments by paymentId for faster lookup
+        const installmentsByPaymentId: Record<string, Installment[]> = {};
+        if (allInstallmentsData.success) {
+          allInstallmentsData.data.forEach((inst: Installment) => {
+            if (!installmentsByPaymentId[inst.paymentId]) {
+              installmentsByPaymentId[inst.paymentId] = [];
+            }
+            installmentsByPaymentId[inst.paymentId].push(inst);
+          });
+        }
+
+        // Map payments with their installments
+        const paymentsWithInstallments = paymentsData.data.map((payment: Payment) => {
+          const installments = installmentsByPaymentId[payment._id] || [];
+          const paidAmount = installments.reduce((sum: number, inst: Installment) => sum + inst.amount, 0);
+          return {
+            ...payment,
+            installments,
+            paidAmount,
+            dues: payment.totalAmount - paidAmount,
+          };
+        });
 
         setAllPayments(paymentsWithInstallments);
 
