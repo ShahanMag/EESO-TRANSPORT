@@ -36,6 +36,11 @@ const PaymentSchema: Schema<IPayment> = new Schema(
   }
 );
 
+// Indexes for query optimization
+PaymentSchema.index({ vehicleId: 1 }); // For filtering by vehicle
+PaymentSchema.index({ date: -1 }); // For sorting by date (descending)
+PaymentSchema.index({ vehicleId: 1, date: -1 }); // Compound index for vehicle + date queries
+
 // Prevent model recompilation in development
 const Payment: Model<IPayment> =
   mongoose.models.Payment || mongoose.model<IPayment>("Payment", PaymentSchema);

@@ -70,6 +70,11 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
   }
 );
 
+// Indexes for query optimization
+VehicleSchema.index({ employeeId: 1 }); // For filtering by employee
+VehicleSchema.index({ type: 1 }); // For filtering by vehicle type (private/public)
+VehicleSchema.index({ createdAt: -1 }); // For date range filtering in reports
+
 // Prevent model recompilation in development
 const Vehicle: Model<IVehicle> =
   mongoose.models.Vehicle || mongoose.model<IVehicle>("Vehicle", VehicleSchema);

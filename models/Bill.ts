@@ -58,6 +58,12 @@ const BillSchema: Schema<IBill> = new Schema(
   }
 );
 
+// Indexes for query optimization
+BillSchema.index({ type: 1 }); // For filtering by income/expense
+BillSchema.index({ employeeId: 1 }); // For filtering by employee
+BillSchema.index({ date: -1 }); // For sorting by date (descending)
+BillSchema.index({ type: 1, date: -1 }); // Compound index for type + date queries
+
 // Virtual field for dues calculation
 BillSchema.virtual("dues").get(function (this: IBill) {
   return this.totalAmount - this.paidAmount;

@@ -55,6 +55,9 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
   }
 );
 
+// Indexes for query optimization
+EmployeeSchema.index({ type: 1 }); // For filtering by employee type (employee/agent)
+
 // Prevent model recompilation in development
 const Employee: Model<IEmployee> =
   mongoose.models.Employee || mongoose.model<IEmployee>("Employee", EmployeeSchema);

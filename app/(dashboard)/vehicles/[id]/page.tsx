@@ -44,6 +44,7 @@ interface Vehicle {
 
 interface Installment {
   _id: string;
+  paymentId: string;
   amount: number;
   date: string;
   remarks?: string;
@@ -116,27 +117,44 @@ export default function VehicleDetailPage() {
 
   async function fetchPayments() {
     try {
-      const res = await fetch(`/api/payments?vehicleId=${vehicleId}`);
-      const data = await res.json();
-      if (data.success) {
-        // Fetch installments for each payment
-        const paymentsWithInstallments = await Promise.all(
-          data.data.map(async (payment: Payment) => {
-            const instRes = await fetch(`/api/installments?paymentId=${payment._id}`);
-            const instData = await instRes.json();
-            const installments = instData.success ? instData.data : [];
-            const paidAmount = installments.reduce(
-              (sum: number, inst: Installment) => sum + inst.amount,
-              0
-            );
-            return {
-              ...payment,
-              installments,
-              paidAmount,
-              dues: payment.totalAmount - paidAmount,
-            };
-          })
-        );
+      // Fetch payments and all installments in parallel
+      const [paymentsRes, installmentsRes] = await Promise.all([
+        fetch(`/api/payments?vehicleId=${vehicleId}`),
+        fetch("/api/installments"),
+      ]);
+
+      const [paymentsData, allInstallmentsData] = await Promise.all([
+        paymentsRes.json(),
+        installmentsRes.json(),
+      ]);
+
+      if (paymentsData.success) {
+        // Group installments by paymentId for faster lookup
+        const installmentsByPaymentId: Record<string, Installment[]> = {};
+        if (allInstallmentsData.success) {
+          allInstallmentsData.data.forEach((inst: Installment) => {
+            if (!installmentsByPaymentId[inst.paymentId]) {
+              installmentsByPaymentId[inst.paymentId] = [];
+            }
+            installmentsByPaymentId[inst.paymentId].push(inst);
+          });
+        }
+
+        // Map payments with their installments
+        const paymentsWithInstallments = paymentsData.data.map((payment: Payment) => {
+          const installments = installmentsByPaymentId[payment._id] || [];
+          const paidAmount = installments.reduce(
+            (sum: number, inst: Installment) => sum + inst.amount,
+            0
+          );
+          return {
+            ...payment,
+            installments,
+            paidAmount,
+            dues: payment.totalAmount - paidAmount,
+          };
+        });
+
         setPayments(paymentsWithInstallments);
       }
     } catch (error) {

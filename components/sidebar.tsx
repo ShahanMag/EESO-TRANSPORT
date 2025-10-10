@@ -37,13 +37,13 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   return (
     <div className="flex h-full w-full flex-col bg-gray-900 text-white">
       {/* Logo Only Section */}
-      <div className="flex h-20 items-center justify-center px-6 border-b border-gray-800">
+      <div className="flex h-20 items-center justify-center px-1 border-b border-gray-800">
         <Image
-          src="/images/Logo.jpeg"
+          src="/images/Logo2.jpg"
           alt="EESA Transport Co Logo"
-          width={110}
+          width={280}
           height={60}
-          className="rounded-lg"
+          className="rounded"
         />
       </div>
 
