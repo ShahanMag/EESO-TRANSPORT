@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import Admin from "@/models/Admin";
+import Admin, { IAdmin } from "@/models/Admin";
 import { serialize } from "cookie";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +21,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Find admin by username
-    const admin = await Admin.findOne({ username: username.toLowerCase() });
-    if (!admin) {
+    const adminDoc = await Admin.findOne({ username: username.toLowerCase() });
+    if (!adminDoc) {
       return NextResponse.json(
         { success: false, error: "Invalid username or password" },
         { status: 401 }
       );
     }
+
+    // Type cast after null check
+    const admin = adminDoc as IAdmin;
 
     // Verify password
     const isPasswordValid = await admin.comparePassword(password);
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Create session data
     const sessionData = {
-      id: admin._id.toString(),
+      id: String(admin._id),
       username: admin.username,
       role: admin.role,
     };

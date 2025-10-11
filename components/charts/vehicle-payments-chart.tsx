@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 interface Payment {
-  vehicleId: { number: string; name: string };
+  vehicleId: { number: string; name: string } | null;
   totalAmount: number;
   paidAmount?: number;
 }
@@ -23,9 +23,12 @@ interface VehiclePaymentsChartProps {
 }
 
 export function VehiclePaymentsChart({ payments }: VehiclePaymentsChartProps) {
+  // Filter out payments with deleted vehicles (null vehicleId)
+  const validPayments = payments.filter((payment) => payment.vehicleId !== null);
+
   // Calculate total amounts across all vehicles
-  const totalAmount = payments.reduce((sum, payment) => sum + payment.totalAmount, 0);
-  const paidAmount = payments.reduce((sum, payment) => sum + (payment.paidAmount || 0), 0);
+  const totalAmount = validPayments.reduce((sum, payment) => sum + payment.totalAmount, 0);
+  const paidAmount = validPayments.reduce((sum, payment) => sum + (payment.paidAmount || 0), 0);
   const dueAmount = totalAmount - paidAmount;
 
   // Format data for single bar chart

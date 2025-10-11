@@ -222,7 +222,7 @@ export default function SettingsPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Admin Management</CardTitle>
-            <Button onClick={handleOpenDialog}>
+            <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Add Admin
             </Button>
@@ -379,7 +379,7 @@ export default function SettingsPage() {
         title="Delete Admin"
         description={`Are you sure you want to delete admin "${deletingAdmin?.username}"? This action cannot be undone.`}
         confirmText="Delete"
-        variant="danger"
+        variant="destructive"
       />
     </div>
   );

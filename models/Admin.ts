@@ -59,8 +59,8 @@ AdminSchema.methods.comparePassword = async function (
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Indexes for query optimization
-AdminSchema.index({ username: 1 });
+// Note: username index is automatically created by "unique: true" above
+// No need for explicit index declaration
 
 // Prevent model recompilation in development
 const Admin: Model<IAdmin> =
