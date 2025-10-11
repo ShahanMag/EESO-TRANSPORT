@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import {
   Users,
   Car,
@@ -13,8 +14,12 @@ import {
   Mail,
   CreditCard,
   Settings,
+  LogOut,
+  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const topNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -35,8 +40,55 @@ interface SidebarProps {
   onLinkClick?: () => void;
 }
 
+interface User {
+  username: string;
+  role: string;
+}
+
 export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  async function fetchUser() {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setLoggingOut(true);
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Logged out successfully");
+        router.push("/login");
+        router.refresh();
+      } else {
+        toast.error("Failed to logout");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("An error occurred during logout");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="flex h-full w-full flex-col bg-gray-900 text-white">
@@ -102,6 +154,35 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
           })}
         </div>
       </nav>
+
+      {/* User Section */}
+      {user && (
+        <div className="border-t border-gray-800 p-4">
+          <div className="bg-gray-800 rounded-lg p-3 mb-3">
+            <div className="flex items-center space-x-3 mb-3">
+              <UserCircle className="h-8 w-8 text-blue-400" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {user.username}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {user.role === "super_admin" ? "Super Admin" : "Admin"}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              variant="outline"
+              className="w-full bg-gray-700 hover:bg-gray-600 border-gray-600 text-white"
+              size="sm"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {loggingOut ? "Logging out..." : "Logout"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Support Section */}
       <div className="border-t border-gray-800 p-4 space-y-3">
