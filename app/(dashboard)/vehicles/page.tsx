@@ -22,7 +22,7 @@ import {
 import { Plus, Search, Edit, Trash2, Upload, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
@@ -51,9 +51,9 @@ export default function VehiclesPage() {
   const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
@@ -74,60 +74,34 @@ export default function VehiclesPage() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Debounced search effect
   useEffect(() => {
-    fetchVehicles();
+    const delayDebounceFn = setTimeout(() => {
+      fetchVehicles(searchTerm);
+    }, 500); // 500ms delay after user stops typing
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  useEffect(() => {
     fetchEmployees();
   }, []);
 
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredVehicles(vehicles);
-      return;
-    }
-
-    const normalizedSearch = searchTerm.trim();
-    const normalizedSearchLower = normalizedSearch.toLowerCase();
-
-    // Remove extra spaces and normalize for better Arabic matching
-    const compactSearch = normalizedSearch.replace(/\s+/g, ' ');
-    const compactSearchNoSpaces = normalizedSearch.replace(/\s+/g, '');
-
-    const filtered = vehicles.filter((v) => {
-      // Normalize vehicle data for search
-      const number = v.number || "";
-      const name = v.name || "";
-      const numberLower = number.toLowerCase();
-      const nameLower = name.toLowerCase();
-
-      // Remove spaces for flexible matching (handles "أ ر د" vs "أرد")
-      const numberNoSpaces = number.replace(/\s+/g, '');
-      const nameNoSpaces = name.replace(/\s+/g, '');
-
-      // Multiple search strategies for better Arabic support:
-      return (
-        // 1. Exact match with original spacing
-        number.includes(normalizedSearch) ||
-        name.includes(normalizedSearch) ||
-        // 2. Case-insensitive for English
-        numberLower.includes(normalizedSearchLower) ||
-        nameLower.includes(normalizedSearchLower) ||
-        // 3. Match without spaces (handles Arabic with/without spaces)
-        numberNoSpaces.includes(compactSearchNoSpaces) ||
-        nameNoSpaces.includes(compactSearchNoSpaces) ||
-        // 4. Normalized spacing
-        number.includes(compactSearch) ||
-        name.includes(compactSearch)
-      );
-    });
-
-    setFilteredVehicles(filtered);
-  }, [searchTerm, vehicles]);
-
-  async function fetchVehicles() {
+  async function fetchVehicles(search = "") {
     try {
-      setLoading(true);
-      const res = await fetch("/api/vehicles");
+      if (search) {
+        setSearching(true);
+      } else {
+        setLoading(true);
+      }
+
+      const url = search
+        ? `/api/vehicles?search=${encodeURIComponent(search)}`
+        : "/api/vehicles";
+
+      const res = await fetch(url);
       const data = await res.json();
+
       if (data.success) {
         setVehicles(data.data);
       } else {
@@ -138,6 +112,7 @@ export default function VehiclesPage() {
       toast.error("Error fetching vehicles");
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }
 
@@ -210,7 +185,7 @@ export default function VehiclesPage() {
             ? "Vehicle updated successfully"
             : "Vehicle created successfully"
         );
-        fetchVehicles();
+        fetchVehicles(searchTerm);
         handleCloseDialog();
       } else {
         toast.error(data.error || "Failed to save vehicle");
@@ -239,7 +214,7 @@ export default function VehiclesPage() {
 
       if (data.success) {
         toast.success("Vehicle deleted successfully");
-        fetchVehicles();
+        fetchVehicles(searchTerm);
       } else {
         toast.error(data.error || "Failed to delete vehicle");
       }
@@ -451,7 +426,7 @@ export default function VehiclesPage() {
 
       if (successCount > 0) {
         toast.success(`Successfully uploaded ${successCount} vehicle(s)`);
-        fetchVehicles();
+        fetchVehicles(searchTerm);
       }
 
       if (errorCount > 0) {
@@ -508,8 +483,10 @@ export default function VehiclesPage() {
           </p>
         </div>
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-blue-700">Search Results</p>
-          <p className="text-2xl font-bold text-blue-900">{filteredVehicles.length}</p>
+          <p className="text-sm font-medium text-blue-700">
+            {searchTerm ? "Search Results" : "Total Count"}
+          </p>
+          <p className="text-2xl font-bold text-blue-900">{vehicles.length}</p>
         </div>
       </div>
 
@@ -517,21 +494,21 @@ export default function VehiclesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search: أ ر د 5013 or ABC-1234 (spaces optional)"
+            placeholder="Search by vehicle number or name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
             dir="auto"
           />
+          {searching && (
+            <div className="absolute right-3 top-3">
+              <LoadingSpinner />
+            </div>
+          )}
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
             Searching for: <span className="font-mono bg-gray-100 px-2 py-1 rounded" dir="auto">{searchTerm}</span>
-            {searchTerm !== searchTerm.replace(/\s+/g, '') && (
-              <span className="ml-2">
-                (also trying without spaces: <span className="font-mono bg-gray-100 px-1 rounded" dir="auto">{searchTerm.replace(/\s+/g, '')}</span>)
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -559,7 +536,7 @@ export default function VehiclesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredVehicles.map((vehicle) => (
+            {vehicles.map((vehicle) => (
               <tr
                 key={vehicle._id}
                 className="hover:bg-gray-50 cursor-pointer"
@@ -605,21 +582,21 @@ export default function VehiclesPage() {
             ))}
           </tbody>
         </table>
-        {filteredVehicles.length === 0 && (
+        {vehicles.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No vehicles found
+            {searchTerm ? "No vehicles found matching your search" : "No vehicles found"}
           </div>
         )}
       </div>
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {filteredVehicles.length === 0 ? (
+        {vehicles.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            No vehicles found
+            {searchTerm ? "No vehicles found matching your search" : "No vehicles found"}
           </div>
         ) : (
-          filteredVehicles.map((vehicle) => (
+          vehicles.map((vehicle) => (
             <div
               key={vehicle._id}
               className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
@@ -786,7 +763,7 @@ export default function VehiclesPage() {
               </div>
               <div>
                 <Label htmlFor="employeeId">Assigned Employee</Label>
-                <Combobox
+                <SearchableSelect
                   options={[
                     { value: "unassigned", label: "Unassigned" },
                     ...employees.map((emp) => ({

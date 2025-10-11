@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
@@ -709,7 +709,7 @@ export default function PaymentsPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="vehicleId">Vehicle</Label>
-                <Combobox
+                <SearchableSelect
                   options={vehicles.map((vehicle) => ({
                     value: vehicle._id,
                     label: vehicle.number,

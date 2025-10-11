@@ -16,10 +16,21 @@ export async function GET(request: NextRequest) {
     let query: any = {};
 
     if (search) {
+      // Escape special regex characters but preserve Unicode (Arabic)
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Also try without spaces for flexible matching
+      const searchNoSpaces = search.replace(/\s+/g, '');
+      const escapedSearchNoSpaces = searchNoSpaces.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { iqamaId: { $regex: search, $options: "i" } },
-        { phone: { $regex: search, $options: "i" } },
+        { name: { $regex: escapedSearch, $options: "i" } },
+        { iqamaId: { $regex: escapedSearch, $options: "i" } },
+        { phone: { $regex: escapedSearch, $options: "i" } },
+        // Add space-insensitive variants
+        { name: { $regex: escapedSearchNoSpaces, $options: "i" } },
+        { iqamaId: { $regex: escapedSearchNoSpaces, $options: "i" } },
+        { phone: { $regex: escapedSearchNoSpaces, $options: "i" } },
       ];
     }
 

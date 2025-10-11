@@ -46,8 +46,20 @@ export function Combobox({
   className,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
   const selectedOption = options.find((option) => option.value === value);
+
+  // Filter options based on search
+  const filteredOptions = React.useMemo(() => {
+    if (!search) return options;
+    const searchLower = search.toLowerCase();
+    return options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(searchLower) ||
+        option.subtitle?.toLowerCase().includes(searchLower)
+    );
+  }, [options, search]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -81,20 +93,25 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {filteredOptions.map((option) => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue);
+                  onSelect={() => {
+                    onChange(option.value === value ? "" : option.value);
                     setOpen(false);
+                    setSearch("");
                   }}
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between cursor-pointer"
                 >
                   <div className="flex flex-col flex-1 overflow-hidden">
                     <span className="truncate">{option.label}</span>

@@ -17,9 +17,19 @@ export async function GET(request: NextRequest) {
     let query: any = {};
 
     if (search) {
+      // Escape special regex characters but preserve Unicode (Arabic)
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Also try without spaces for flexible Arabic matching
+      const searchNoSpaces = search.replace(/\s+/g, '');
+      const escapedSearchNoSpaces = searchNoSpaces.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
       query.$or = [
-        { number: { $regex: search, $options: "i" } },
-        { name: { $regex: search, $options: "i" } },
+        { number: { $regex: escapedSearch, $options: "i" } },
+        { name: { $regex: escapedSearch, $options: "i" } },
+        // Add space-insensitive variants
+        { number: { $regex: escapedSearchNoSpaces, $options: "i" } },
+        { name: { $regex: escapedSearchNoSpaces, $options: "i" } },
       ];
     }
 

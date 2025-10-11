@@ -45,9 +45,9 @@ interface Vehicle {
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -68,33 +68,45 @@ export default function EmployeesPage() {
     reason: "",
   });
 
+  // Debounced search effect
   useEffect(() => {
-    fetchEmployees();
+    const delayDebounceFn = setTimeout(() => {
+      fetchEmployees(searchTerm);
+    }, 500); // 500ms delay after user stops typing
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  useEffect(() => {
     fetchVehicles();
   }, []);
 
-  useEffect(() => {
-    const filtered = employees.filter(
-      (emp) =>
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.iqamaId.includes(searchTerm) ||
-        (emp.phone && emp.phone.includes(searchTerm))
-    );
-    setFilteredEmployees(filtered);
-  }, [searchTerm, employees]);
-
-  async function fetchEmployees() {
+  async function fetchEmployees(search = "") {
     try {
-      setLoading(true);
-      const res = await fetch("/api/employees");
+      if (search) {
+        setSearching(true);
+      } else {
+        setLoading(true);
+      }
+
+      const url = search
+        ? `/api/employees?search=${encodeURIComponent(search)}`
+        : "/api/employees";
+
+      const res = await fetch(url);
       const data = await res.json();
+
       if (data.success) {
         setEmployees(data.data);
+      } else {
+        toast.error("Failed to fetch employees");
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
+      toast.error("Error fetching employees");
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }
 
@@ -206,7 +218,7 @@ export default function EmployeesPage() {
             ? "Employee updated successfully"
             : "Employee created successfully"
         );
-        fetchEmployees();
+        fetchEmployees(searchTerm);
         fetchVehicles();
         handleCloseDialog();
       } else {
@@ -261,7 +273,7 @@ export default function EmployeesPage() {
 
       if (data.success) {
         toast.success(`Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`);
-        fetchEmployees();
+        fetchEmployees(searchTerm);
         fetchVehicles();
         setIsTerminateDialogOpen(false);
         setTerminatingEmployee(null);
@@ -482,7 +494,7 @@ export default function EmployeesPage() {
 
       if (successCount > 0) {
         toast.success(`Successfully uploaded ${successCount} employee(s)`);
-        fetchEmployees();
+        fetchEmployees(searchTerm);
       }
 
       if (errorCount > 0) {
@@ -539,8 +551,10 @@ export default function EmployeesPage() {
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-amber-700">Search Results</p>
-          <p className="text-2xl font-bold text-amber-900">{filteredEmployees.length}</p>
+          <p className="text-sm font-medium text-amber-700">
+            {searchTerm ? "Search Results" : "Total Count"}
+          </p>
+          <p className="text-2xl font-bold text-amber-900">{employees.length}</p>
         </div>
       </div>
 
@@ -553,7 +567,17 @@ export default function EmployeesPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
+          {searching && (
+            <div className="absolute right-3 top-3">
+              <LoadingSpinner />
+            </div>
+          )}
         </div>
+        {searchTerm && (
+          <div className="mt-2 text-xs text-gray-500">
+            Searching for: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{searchTerm}</span>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -581,7 +605,7 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredEmployees.map((employee) => {
+            {employees.map((employee) => {
               // Get vehicles assigned to this employee
               const assignedVehicles = vehicles
                 .filter((v) => {
@@ -636,9 +660,9 @@ export default function EmployeesPage() {
             })}
           </tbody>
         </table>
-        {filteredEmployees.length === 0 && (
+        {employees.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            No employees found
+            {searchTerm ? "No employees found matching your search" : "No employees found"}
           </div>
         )}
       </div>
