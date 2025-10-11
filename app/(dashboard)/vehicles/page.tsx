@@ -22,6 +22,7 @@ import {
 import { Plus, Search, Edit, Trash2, Upload, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
@@ -727,24 +728,23 @@ export default function VehiclesPage() {
               </div>
               <div>
                 <Label htmlFor="employeeId">Assigned Employee</Label>
-                <Select
+                <Combobox
+                  options={[
+                    { value: "unassigned", label: "Unassigned" },
+                    ...employees.map((emp) => ({
+                      value: emp._id,
+                      label: emp.name,
+                      subtitle: emp.type === "agent" ? "Agent" : "Employee",
+                    })),
+                  ]}
                   value={formData.employeeId}
-                  onValueChange={(value) =>
+                  onChange={(value) =>
                     setFormData({ ...formData, employeeId: value })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {employees.map((emp) => (
-                      <SelectItem key={emp._id} value={emp._id}>
-                        {emp.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select employee..."
+                  searchPlaceholder="Search employees..."
+                  emptyMessage="No employee found."
+                />
               </div>
               <div className="md:col-span-2">
                 <Label htmlFor="description">Description</Label>

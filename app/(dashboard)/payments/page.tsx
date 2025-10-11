@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
@@ -708,23 +709,20 @@ export default function PaymentsPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="vehicleId">Vehicle</Label>
-                <Select
+                <Combobox
+                  options={vehicles.map((vehicle) => ({
+                    value: vehicle._id,
+                    label: vehicle.number,
+                    subtitle: vehicle.name,
+                  }))}
                   value={paymentFormData.vehicleId}
-                  onValueChange={(value) =>
+                  onChange={(value) =>
                     setPaymentFormData({ ...paymentFormData, vehicleId: value })
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select vehicle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle._id} value={vehicle._id}>
-                        {vehicle.number} - {vehicle.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Select vehicle..."
+                  searchPlaceholder="Search vehicles..."
+                  emptyMessage="No vehicle found."
+                />
                 {errors.vehicleId && (
                   <p className="text-sm text-red-500 mt-1">{errors.vehicleId}</p>
                 )}
