@@ -85,20 +85,38 @@ export default function VehiclesPage() {
       return;
     }
 
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedSearch = searchTerm.trim();
+    const normalizedSearchLower = normalizedSearch.toLowerCase();
+
+    // Remove extra spaces and normalize for better Arabic matching
+    const compactSearch = normalizedSearch.replace(/\s+/g, ' ');
+    const compactSearchNoSpaces = normalizedSearch.replace(/\s+/g, '');
 
     const filtered = vehicles.filter((v) => {
       // Normalize vehicle data for search
       const number = v.number || "";
       const name = v.name || "";
+      const numberLower = number.toLowerCase();
+      const nameLower = name.toLowerCase();
 
-      // Check if search term exists in vehicle number or name
-      // Support both Arabic and English by checking without case transformation for Arabic
+      // Remove spaces for flexible matching (handles "أ ر د" vs "أرد")
+      const numberNoSpaces = number.replace(/\s+/g, '');
+      const nameNoSpaces = name.replace(/\s+/g, '');
+
+      // Multiple search strategies for better Arabic support:
       return (
-        number.toLowerCase().includes(normalizedSearch) ||
-        name.toLowerCase().includes(normalizedSearch) ||
-        number.includes(searchTerm.trim()) ||
-        name.includes(searchTerm.trim())
+        // 1. Exact match with original spacing
+        number.includes(normalizedSearch) ||
+        name.includes(normalizedSearch) ||
+        // 2. Case-insensitive for English
+        numberLower.includes(normalizedSearchLower) ||
+        nameLower.includes(normalizedSearchLower) ||
+        // 3. Match without spaces (handles Arabic with/without spaces)
+        numberNoSpaces.includes(compactSearchNoSpaces) ||
+        nameNoSpaces.includes(compactSearchNoSpaces) ||
+        // 4. Normalized spacing
+        number.includes(compactSearch) ||
+        name.includes(compactSearch)
       );
     });
 
@@ -499,13 +517,23 @@ export default function VehiclesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by vehicle number or name... (البحث برقم أو اسم المركبة)"
+            placeholder="Search: أ ر د 5013 or ABC-1234 (spaces optional)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
             dir="auto"
           />
         </div>
+        {searchTerm && (
+          <div className="mt-2 text-xs text-gray-500">
+            Searching for: <span className="font-mono bg-gray-100 px-2 py-1 rounded" dir="auto">{searchTerm}</span>
+            {searchTerm !== searchTerm.replace(/\s+/g, '') && (
+              <span className="ml-2">
+                (also trying without spaces: <span className="font-mono bg-gray-100 px-1 rounded" dir="auto">{searchTerm.replace(/\s+/g, '')}</span>)
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Desktop Table View */}
