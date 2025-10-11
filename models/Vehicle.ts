@@ -91,7 +91,8 @@ VehicleSchema.pre(/^find/, function (next) {
   // @ts-ignore
   if (this.getQuery && !this.getQuery().hasOwnProperty('isDeleted')) {
     // @ts-ignore
-    this.where({ isDeleted: false });
+    // Use $ne (not equal) to filter: this includes docs where isDeleted is false or missing
+    this.where({ isDeleted: { $ne: true } });
   }
   next();
 });
