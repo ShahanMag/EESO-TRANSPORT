@@ -100,24 +100,32 @@ export default function PaymentsPage() {
     // Group payments by vehicle
     const groups: Map<string, VehiclePaymentGroup> = new Map();
 
-    vehicles.forEach((vehicle) => {
-      const vehiclePayments = payments.filter(
-        (p) => p.vehicleId && p.vehicleId._id === vehicle._id
-      );
+    // Process payments and group by vehicle
+    payments.forEach((payment) => {
+      if (!payment.vehicleId) return; // Skip payments without vehicle
 
-      if (vehiclePayments.length > 0) {
-        const totalAmount = vehiclePayments.reduce((sum, p) => sum + p.totalAmount, 0);
-        const totalPaid = vehiclePayments.reduce((sum, p) => sum + p.paidAmount, 0);
-        const totalDues = totalAmount - totalPaid;
+      const vehicleId = payment.vehicleId._id;
 
-        groups.set(vehicle._id, {
-          vehicle,
-          payments: vehiclePayments,
-          totalAmount,
-          totalPaid,
-          totalDues,
+      if (!groups.has(vehicleId)) {
+        // Create new group with vehicle info from the payment's populated vehicleId
+        groups.set(vehicleId, {
+          vehicle: {
+            _id: payment.vehicleId._id,
+            number: payment.vehicleId.number,
+            name: payment.vehicleId.name,
+          },
+          payments: [],
+          totalAmount: 0,
+          totalPaid: 0,
+          totalDues: 0,
         });
       }
+
+      const group = groups.get(vehicleId)!;
+      group.payments.push(payment);
+      group.totalAmount += payment.totalAmount;
+      group.totalPaid += payment.paidAmount;
+      group.totalDues += payment.dues;
     });
 
     const groupsArray = Array.from(groups.values());
@@ -129,7 +137,7 @@ export default function PaymentsPage() {
       group.vehicle.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredGroups(filtered);
-  }, [payments, vehicles, searchTerm]);
+  }, [payments, searchTerm]);
 
   async function fetchPayments() {
     try {
