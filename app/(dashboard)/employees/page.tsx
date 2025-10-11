@@ -30,7 +30,7 @@ interface Employee {
   _id: string;
   name: string;
   iqamaId: string;
-  phone: string;
+  phone?: string;
   type: "employee" | "agent";
   joinDate?: string;
 }
@@ -78,7 +78,7 @@ export default function EmployeesPage() {
       (emp) =>
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.iqamaId.includes(searchTerm) ||
-        emp.phone.includes(searchTerm)
+        (emp.phone && emp.phone.includes(searchTerm))
     );
     setFilteredEmployees(filtered);
   }, [searchTerm, employees]);
@@ -287,7 +287,7 @@ export default function EmployeesPage() {
           setFormData({
             name: fullEmployee.name,
             iqamaId: fullEmployee.iqamaId,
-            phone: fullEmployee.phone,
+            phone: fullEmployee.phone || "+966",
             type: fullEmployee.type,
             joinDate: fullEmployee.joinDate
               ? new Date(fullEmployee.joinDate).toISOString().split("T")[0]
@@ -602,7 +602,7 @@ export default function EmployeesPage() {
                     {employee.iqamaId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {employee.phone}
+                    {employee.phone || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <Badge variant={employee.type === "agent" ? "default" : "secondary"}>
