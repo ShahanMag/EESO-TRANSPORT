@@ -80,11 +80,28 @@ export default function VehiclesPage() {
   }, []);
 
   useEffect(() => {
-    const filtered = vehicles.filter(
-      (v) =>
-        v.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    if (!searchTerm.trim()) {
+      setFilteredVehicles(vehicles);
+      return;
+    }
+
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    const filtered = vehicles.filter((v) => {
+      // Normalize vehicle data for search
+      const number = v.number || "";
+      const name = v.name || "";
+
+      // Check if search term exists in vehicle number or name
+      // Support both Arabic and English by checking without case transformation for Arabic
+      return (
+        number.toLowerCase().includes(normalizedSearch) ||
+        name.toLowerCase().includes(normalizedSearch) ||
+        number.includes(searchTerm.trim()) ||
+        name.includes(searchTerm.trim())
+      );
+    });
+
     setFilteredVehicles(filtered);
   }, [searchTerm, vehicles]);
 
@@ -482,10 +499,11 @@ export default function VehiclesPage() {
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by vehicle number or name..."
+            placeholder="Search by vehicle number or name... (البحث برقم أو اسم المركبة)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
+            dir="auto"
           />
         </div>
       </div>
@@ -639,7 +657,8 @@ export default function VehiclesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, number: e.target.value })
                   }
-                  placeholder="e.g., ABC-1234"
+                  placeholder="e.g., ABC-1234 or أ ر د 1234"
+                  dir="auto"
                 />
                 {errors.number && (
                   <p className="text-sm text-red-500 mt-1">{errors.number}</p>
