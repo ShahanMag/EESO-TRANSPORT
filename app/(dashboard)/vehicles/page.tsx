@@ -502,6 +502,9 @@ export default function VehiclesPage() {
                 Vehicle Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Serial Number
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Assigned Employee
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -521,6 +524,9 @@ export default function VehiclesPage() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {vehicle.serialNumber || "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.employeeId
@@ -577,6 +583,11 @@ export default function VehiclesPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{vehicle.number}</h3>
                   <p className="text-sm text-gray-600">{vehicle.name}</p>
+                  {vehicle.serialNumber && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      SN: {vehicle.serialNumber}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">
                     {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
                   </p>
