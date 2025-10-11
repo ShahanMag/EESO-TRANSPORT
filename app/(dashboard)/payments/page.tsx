@@ -35,7 +35,7 @@ interface Installment {
 
 interface Payment {
   _id: string;
-  vehicleId: { _id: string; number: string; name: string };
+  vehicleId: { _id: string; number: string; name: string } | null;
   totalAmount: number;
   date: string;
   remarks?: string;
@@ -101,7 +101,7 @@ export default function PaymentsPage() {
 
     vehicles.forEach((vehicle) => {
       const vehiclePayments = payments.filter(
-        (p) => p.vehicleId._id === vehicle._id
+        (p) => p.vehicleId && p.vehicleId._id === vehicle._id
       );
 
       if (vehiclePayments.length > 0) {
@@ -325,7 +325,7 @@ export default function PaymentsPage() {
     if (payment) {
       setEditingPayment(payment);
       setPaymentFormData({
-        vehicleId: payment.vehicleId._id,
+        vehicleId: payment.vehicleId ? payment.vehicleId._id : "",
         totalAmount: payment.totalAmount.toString(),
         date: new Date(payment.date).toISOString().split("T")[0],
         remarks: payment.remarks || "",
@@ -790,7 +790,7 @@ export default function PaymentsPage() {
             </DialogTitle>
             {selectedPayment && (
               <p className="text-sm text-gray-500">
-                Payment: {selectedPayment.vehicleId.number} - {formatCurrency(selectedPayment.totalAmount)} |
+                Payment: {selectedPayment.vehicleId ? selectedPayment.vehicleId.number : "Deleted Vehicle"} - {formatCurrency(selectedPayment.totalAmount)} |
                 Paid: {formatCurrency(selectedPayment.paidAmount)} |
                 Remaining: {formatCurrency(selectedPayment.dues)}
               </p>

@@ -24,7 +24,7 @@ interface Installment {
 
 interface Payment {
   _id: string;
-  vehicleId: { _id: string; number: string; name: string };
+  vehicleId: { _id: string; number: string; name: string } | null;
   totalAmount: number;
   date: string;
   remarks?: string;
@@ -334,11 +334,13 @@ export default function DashboardPage() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
                         <h3 className="font-semibold text-gray-900">
-                          {payment.vehicleId.number}
+                          {payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle"}
                         </h3>
                         {getStatusBadge(payment.totalAmount, payment.paidAmount)}
                       </div>
-                      <p className="text-sm text-gray-600">{payment.vehicleId.name}</p>
+                      <p className="text-sm text-gray-600">
+                        {payment.vehicleId ? payment.vehicleId.name : "-"}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">

@@ -157,7 +157,7 @@ export default function ReportsPage() {
 
       case "payments":
         const paymentData = reportData.payments.map((payment: any) => ({
-          vehicle: payment.vehicleId.number,
+          vehicle: payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle",
           date: formatDate(payment.date),
           totalAmount: payment.totalAmount,
           paidAmount: payment.paidAmount,
@@ -469,7 +469,7 @@ export default function ReportsPage() {
                     {reportData.payments.map((payment: any) => (
                       <tr key={payment._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {payment.vehicleId.number}
+                          {payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(payment.date)}
