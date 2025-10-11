@@ -11,6 +11,8 @@ export interface IVehicle extends Document {
   contractExpiry?: Date;
   description?: string;
   employeeId: mongoose.Types.ObjectId | null;
+  isDeleted: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +66,14 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
       ref: "Employee",
       default: null,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -74,6 +84,17 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
 VehicleSchema.index({ employeeId: 1 }); // For filtering by employee
 VehicleSchema.index({ type: 1 }); // For filtering by vehicle type (private/public)
 VehicleSchema.index({ createdAt: -1 }); // For date range filtering in reports
+VehicleSchema.index({ isDeleted: 1 }); // For filtering soft-deleted records
+
+// Query middleware to automatically filter out deleted records
+VehicleSchema.pre(/^find/, function (next) {
+  // @ts-ignore
+  if (this.getQuery && !this.getQuery().hasOwnProperty('isDeleted')) {
+    // @ts-ignore
+    this.where({ isDeleted: false });
+  }
+  next();
+});
 
 // Prevent model recompilation in development
 const Vehicle: Model<IVehicle> =

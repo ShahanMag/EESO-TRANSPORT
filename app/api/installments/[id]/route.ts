@@ -46,7 +46,7 @@ export async function DELETE(
     await dbConnect();
     const { id } = await params;
 
-    const installment = await Installment.findByIdAndDelete(id);
+    const installment = await Installment.findByIdAndUpdate(id, { isDeleted: true, deletedAt: new Date() }, { new: true });
 
     if (!installment) {
       return NextResponse.json(

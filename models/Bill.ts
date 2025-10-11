@@ -7,6 +7,8 @@ export interface IBill extends Document {
   paidAmount: number;
   date: Date;
   employeeId: mongoose.Types.ObjectId | null;
+  isDeleted: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,14 @@ const BillSchema: Schema<IBill> = new Schema(
       ref: "Employee",
       default: null,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -63,6 +73,17 @@ BillSchema.index({ type: 1 }); // For filtering by income/expense
 BillSchema.index({ employeeId: 1 }); // For filtering by employee
 BillSchema.index({ date: -1 }); // For sorting by date (descending)
 BillSchema.index({ type: 1, date: -1 }); // Compound index for type + date queries
+BillSchema.index({ isDeleted: 1 }); // For filtering soft-deleted records
+
+// Query middleware to automatically filter out deleted records
+BillSchema.pre(/^find/, function (next) {
+  // @ts-ignore
+  if (this.getQuery && !this.getQuery().hasOwnProperty('isDeleted')) {
+    // @ts-ignore
+    this.where({ isDeleted: false });
+  }
+  next();
+});
 
 // Virtual field for dues calculation
 BillSchema.virtual("dues").get(function (this: IBill) {

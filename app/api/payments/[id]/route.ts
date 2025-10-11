@@ -116,10 +116,13 @@ export async function DELETE(
       );
     }
 
-    // Delete all associated installments first
-    await Installment.deleteMany({ paymentId: id });
+    // Soft delete all associated installments first
+    await Installment.updateMany(
+      { paymentId: id },
+      { isDeleted: true, deletedAt: new Date() }
+    );
 
-    const payment = await Payment.findByIdAndDelete(id);
+    const payment = await Payment.findByIdAndUpdate(id, { isDeleted: true, deletedAt: new Date() }, { new: true });
 
     if (!payment) {
       return NextResponse.json(

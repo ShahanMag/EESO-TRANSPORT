@@ -112,7 +112,7 @@ export async function PUT(
   }
 }
 
-// DELETE vehicle
+// DELETE vehicle (soft delete)
 
 export async function DELETE(
   request: NextRequest,
@@ -129,7 +129,14 @@ export async function DELETE(
       );
     }
 
-    const vehicle = await Vehicle.findByIdAndDelete(id);
+    const vehicle = await Vehicle.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      { new: true }
+    );
 
     if (!vehicle) {
       return NextResponse.json(

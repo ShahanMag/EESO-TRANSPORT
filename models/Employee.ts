@@ -6,6 +6,8 @@ export interface IEmployee extends Document {
   phone?: string;
   type: "employee" | "agent";
   joinDate?: Date;
+  isDeleted: boolean;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +53,14 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
     joinDate: {
       type: Date,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -59,6 +69,17 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
 
 // Indexes for query optimization
 EmployeeSchema.index({ type: 1 }); // For filtering by employee type (employee/agent)
+EmployeeSchema.index({ isDeleted: 1 }); // For filtering soft-deleted records
+
+// Query middleware to automatically filter out deleted records
+EmployeeSchema.pre(/^find/, function (next) {
+  // @ts-ignore
+  if (this.getQuery && !this.getQuery().hasOwnProperty('isDeleted')) {
+    // @ts-ignore
+    this.where({ isDeleted: false });
+  }
+  next();
+});
 
 // Prevent model recompilation in development
 const Employee: Model<IEmployee> =

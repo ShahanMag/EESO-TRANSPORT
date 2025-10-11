@@ -104,7 +104,7 @@ export async function PUT(
   }
 }
 
-// DELETE employee
+// DELETE employee (soft delete)
 
 export async function DELETE(
   request: NextRequest,
@@ -121,7 +121,14 @@ export async function DELETE(
       );
     }
 
-    const employee = await Employee.findByIdAndDelete(id);
+    const employee = await Employee.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+      { new: true }
+    );
 
     if (!employee) {
       return NextResponse.json(

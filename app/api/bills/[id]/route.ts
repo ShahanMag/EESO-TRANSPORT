@@ -132,7 +132,7 @@ export async function DELETE(
       );
     }
 
-    const bill = await Bill.findByIdAndDelete(id);
+    const bill = await Bill.findByIdAndUpdate(id, { isDeleted: true, deletedAt: new Date() }, { new: true });
 
     if (!bill) {
       return NextResponse.json(
