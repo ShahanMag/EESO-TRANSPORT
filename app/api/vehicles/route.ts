@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Vehicle from "@/models/Vehicle";
+import Payment from "@/models/Payment";
 
 // GET all vehicles
 export const dynamic = "force-dynamic";
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
 
     // Populate employee data
     await vehicle.populate("employeeId", "name type");
+
+    // If vehicleAmount is provided, create a payment record
+    if (body.vehicleAmount && body.vehicleAmount > 0) {
+      await Payment.create({
+        vehicleId: vehicle._id,
+        totalAmount: body.vehicleAmount,
+        date: body.startDate || new Date(),
+        remarks: "Initial vehicle contract payment",
+      });
+    }
 
     return NextResponse.json(
       {

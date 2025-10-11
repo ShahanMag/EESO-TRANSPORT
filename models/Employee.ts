@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IEmployee extends Document {
   name: string;
   iqamaId: string;
-  phone: string;
+  phone?: string;
   type: "employee" | "agent";
   joinDate?: Date;
   createdAt: Date;
@@ -30,9 +30,11 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
     },
     phone: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: false,
       validate: {
         validator: function (v: string) {
+          // Allow empty/null values, but if provided, must match format
+          if (!v || v === "") return true;
           return /^\+966\d{9}$/.test(v);
         },
         message: "Phone number must be in format +966XXXXXXXXX",

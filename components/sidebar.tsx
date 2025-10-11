@@ -11,6 +11,8 @@ import {
   Home,
   Phone,
   Mail,
+  CreditCard,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +20,9 @@ const topNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Employees", href: "/employees", icon: Users },
   { name: "Vehicles", href: "/vehicles", icon: Car },
+  { name: "Payments", href: "/payments", icon: CreditCard },
   { name: "Reports", href: "/reports", icon: BarChart3 },
+  { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 

@@ -73,8 +73,10 @@ export default function VehicleDetailPage() {
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [isDeletePaymentDialogOpen, setIsDeletePaymentDialogOpen] = useState(false);
+  const [isDeleteInstallmentDialogOpen, setIsDeleteInstallmentDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [deletingInstallmentId, setDeletingInstallmentId] = useState<string | null>(null);
   const [paymentFormData, setPaymentFormData] = useState({
     totalAmount: "",
     date: new Date().toISOString().split("T")[0],
@@ -286,6 +288,35 @@ export default function VehicleDetailPage() {
     } finally {
       setIsDeletePaymentDialogOpen(false);
       setDeletingPaymentId(null);
+    }
+  }
+
+  function handleDeleteInstallmentClick(installmentId: string) {
+    setDeletingInstallmentId(installmentId);
+    setIsDeleteInstallmentDialogOpen(true);
+  }
+
+  async function handleDeleteInstallmentConfirm() {
+    if (!deletingInstallmentId) return;
+
+    try {
+      const res = await fetch(`/api/installments/${deletingInstallmentId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Installment deleted successfully");
+        fetchPayments();
+      } else {
+        toast.error(data.error || "Failed to delete installment");
+      }
+    } catch (error) {
+      console.error("Error deleting installment:", error);
+      toast.error("An error occurred while deleting installment");
+    } finally {
+      setIsDeleteInstallmentDialogOpen(false);
+      setDeletingInstallmentId(null);
     }
   }
 
@@ -571,19 +602,26 @@ export default function VehicleDetailPage() {
                           key={inst._id}
                           className="flex items-center justify-between p-2 bg-white rounded border"
                         >
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold text-sm">
                               {formatCurrency(inst.amount)}
                             </p>
                             <p className="text-xs text-gray-500">
                               {formatDate(inst.date)}
                             </p>
+                            {inst.remarks && (
+                              <p className="text-xs text-gray-500 italic mt-1">
+                                {inst.remarks}
+                              </p>
+                            )}
                           </div>
-                          {inst.remarks && (
-                            <p className="text-xs text-gray-500 italic">
-                              {inst.remarks}
-                            </p>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteInstallmentClick(inst._id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -867,6 +905,18 @@ export default function VehicleDetailPage() {
         onConfirm={handleDeletePaymentConfirm}
         title="Delete Payment Record"
         description="Are you sure you want to delete this payment record? This will also delete all associated installments. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
+
+      {/* Delete Installment Confirmation Dialog */}
+      <ConfirmDialog
+        open={isDeleteInstallmentDialogOpen}
+        onOpenChange={setIsDeleteInstallmentDialogOpen}
+        onConfirm={handleDeleteInstallmentConfirm}
+        title="Delete Installment"
+        description="Are you sure you want to delete this installment? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"
         variant="destructive"

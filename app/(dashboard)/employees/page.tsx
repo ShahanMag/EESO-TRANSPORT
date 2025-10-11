@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, X, Upload, Download } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Upload, Download, UserX } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
@@ -61,6 +61,12 @@ export default function EmployeesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
+  const [terminatingEmployee, setTerminatingEmployee] = useState<Employee | null>(null);
+  const [terminateFormData, setTerminateFormData] = useState({
+    date: new Date().toISOString().split("T")[0],
+    reason: "",
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -115,7 +121,8 @@ export default function EmployeesPage() {
       newErrors.iqamaId = "Iqama ID must be exactly 10 digits";
     }
 
-    if (!/^\+966\d{9}$/.test(formData.phone)) {
+    // Phone is optional, but if provided, must match format
+    if (formData.phone && formData.phone.trim() !== "+966" && !/^\+966\d{9}$/.test(formData.phone)) {
       newErrors.phone = "Phone must be in format +966XXXXXXXXX";
     }
 
@@ -211,21 +218,59 @@ export default function EmployeesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this employee?")) return;
+  function handleTerminateClick(employee: Employee) {
+    setTerminatingEmployee(employee);
+    setTerminateFormData({
+      date: new Date().toISOString().split("T")[0],
+      reason: "",
+    });
+    setIsTerminateDialogOpen(true);
+  }
+
+  async function handleTerminateConfirm(e: React.FormEvent) {
+    e.preventDefault();
+    if (!terminatingEmployee) return;
 
     try {
-      const res = await fetch(`/api/employees/${id}`, { method: "DELETE" });
+      // Get vehicles assigned to this employee
+      const assignedVehicles = vehicles.filter((v) => {
+        const empId = typeof v.employeeId === 'object' && v.employeeId !== null
+          ? (v.employeeId as any)._id
+          : v.employeeId;
+        return empId === terminatingEmployee._id;
+      });
+
+      // Unassign all vehicles
+      for (const vehicle of assignedVehicles) {
+        await fetch(`/api/vehicles/${vehicle._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            number: vehicle.number,
+            name: vehicle.name,
+            employeeId: null,
+          }),
+        });
+      }
+
+      // Delete the employee
+      const res = await fetch(`/api/employees/${terminatingEmployee._id}`, {
+        method: "DELETE",
+      });
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Employee deleted successfully");
+        toast.success(`Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`);
         fetchEmployees();
+        fetchVehicles();
+        setIsTerminateDialogOpen(false);
+        setTerminatingEmployee(null);
       } else {
-        toast.error(data.error || "Failed to delete employee");
+        toast.error(data.error || "Failed to terminate employee");
       }
     } catch (error) {
-      console.error("Error deleting employee:", error);
+      console.error("Error terminating employee:", error);
+      toast.error("An error occurred while terminating employee");
     }
   }
 
@@ -293,6 +338,7 @@ export default function EmployeesPage() {
         phone: "966501234567",
         type: "employee",
         joinDate: "2024-01-15",
+        vehicleNumber: "ABC-1234",
       },
       {
         name: "Jane Smith",
@@ -300,15 +346,17 @@ export default function EmployeesPage() {
         phone: "966509876543",
         type: "agent",
         joinDate: "2024-02-20",
+        vehicleNumber: "",
       },
     ];
 
     const columns = [
       { header: "Name", key: "name", width: 25 },
       { header: "Iqama ID (10 digits)", key: "iqamaId", width: 20 },
-      { header: "Phone (966XXXXXXXXX)", key: "phone", width: 20 },
+      { header: "Phone (966XXXXXXXXX) - Optional", key: "phone", width: 25 },
       { header: "Type (employee/agent)", key: "type", width: 20 },
       { header: "Join Date (YYYY-MM-DD)", key: "joinDate", width: 20 },
+      { header: "Vehicle Number - Optional", key: "vehicleNumber", width: 20 },
     ];
 
     exportToExcel(templateData, columns, "employee-template");
@@ -333,15 +381,15 @@ export default function EmployeesPage() {
 
       for (const row of jsonData as any[]) {
         try {
-          // Validate required fields
-          if (!row.Name || !row["Iqama ID (10 digits)"] || !row["Phone (966XXXXXXXXX)"]) {
+          // Validate required fields (phone is now optional)
+          if (!row.Name || !row["Iqama ID (10 digits)"]) {
             errors.push(`Row with name "${row.Name || "unknown"}" is missing required fields`);
             errorCount++;
             continue;
           }
 
           const iqamaId = row["Iqama ID (10 digits)"].toString();
-          let phone = row["Phone (966XXXXXXXXX)"].toString().trim();
+          let phone = row["Phone (966XXXXXXXXX)"] ? row["Phone (966XXXXXXXXX)"].toString().trim() : "";
           const type = (row["Type (employee/agent)"] || "employee").toLowerCase();
           const joinDate = row["Join Date (YYYY-MM-DD)"];
 
@@ -352,20 +400,24 @@ export default function EmployeesPage() {
             continue;
           }
 
-          // Validate and format phone - accept with or without +
-          // Remove any spaces or dashes
-          phone = phone.replace(/[\s-]/g, '');
+          // Phone is optional, but if provided, validate and format
+          if (phone) {
+            // Remove any spaces or dashes
+            phone = phone.replace(/[\s-]/g, '');
 
-          // If phone starts with 966 but not +966, add the +
-          if (/^966\d{9}$/.test(phone)) {
-            phone = '+' + phone;
-          }
+            // If phone starts with 966 but not +966, add the +
+            if (/^966\d{9}$/.test(phone)) {
+              phone = '+' + phone;
+            }
 
-          // Now validate the final format
-          if (!/^\+966\d{9}$/.test(phone)) {
-            errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
-            errorCount++;
-            continue;
+            // Now validate the final format
+            if (!/^\+966\d{9}$/.test(phone)) {
+              errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
+              errorCount++;
+              continue;
+            }
+          } else {
+            phone = undefined;
           }
 
           // Validate type
@@ -381,7 +433,7 @@ export default function EmployeesPage() {
             body: JSON.stringify({
               name: row.Name,
               iqamaId: iqamaId,
-              phone: phone,
+              phone: phone || undefined,
               type: type,
               joinDate: joinDate ? new Date(joinDate) : undefined,
             }),
@@ -390,6 +442,33 @@ export default function EmployeesPage() {
           const result = await res.json();
 
           if (result.success) {
+            const employeeId = result.data._id;
+
+            // Try to assign vehicle if vehicle number is provided
+            const vehicleNumber = row["Vehicle Number - Optional"];
+            if (vehicleNumber && vehicleNumber.trim()) {
+              const vehicle = vehicles.find((v) => v.number === vehicleNumber.trim());
+              if (vehicle) {
+                try {
+                  await fetch(`/api/vehicles/${vehicle._id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      number: vehicle.number,
+                      name: vehicle.name,
+                      employeeId: employeeId,
+                    }),
+                  });
+                } catch (vehicleError) {
+                  // Just warn, don't fail the employee creation
+                  errors.push(`Row "${row.Name}": Employee created but failed to assign vehicle "${vehicleNumber}"`);
+                }
+              } else {
+                // Just warn, don't fail the employee creation
+                errors.push(`Row "${row.Name}": Employee created but vehicle "${vehicleNumber}" not found`);
+              }
+            }
+
             successCount++;
           } else {
             errors.push(`Row "${row.Name}": ${result.error}`);
@@ -546,9 +625,10 @@ export default function EmployeesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(employee._id)}
+                      onClick={() => handleTerminateClick(employee)}
+                      title="Terminate Employee"
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <UserX className="h-4 w-4 text-red-500" />
                     </Button>
                   </td>
                 </tr>
@@ -600,13 +680,14 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="phone">Phone (+966XXXXXXXXX)</Label>
+                <Label htmlFor="phone">Phone (+966XXXXXXXXX) - Optional</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
+                  placeholder="+966XXXXXXXXX"
                 />
                 {errors.phone && (
                   <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
@@ -763,9 +844,10 @@ export default function EmployeesPage() {
               <div className="text-xs text-gray-600 space-y-1">
                 <p><strong>Name:</strong> Employee full name</p>
                 <p><strong>Iqama ID:</strong> Exactly 10 digits (e.g., 1234567890)</p>
-                <p><strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX (e.g., 966501234567)</p>
+                <p><strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX (e.g., 966501234567) - Optional</p>
                 <p><strong>Type:</strong> Either "employee" or "agent"</p>
                 <p><strong>Join Date:</strong> Format YYYY-MM-DD (e.g., 2024-01-15) - Optional</p>
+                <p><strong>Vehicle Number:</strong> Vehicle number to assign (e.g., ABC-1234) - Optional</p>
               </div>
             </div>
           </div>
@@ -779,6 +861,84 @@ export default function EmployeesPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Terminate Employee Dialog */}
+      <Dialog open={isTerminateDialogOpen} onOpenChange={setIsTerminateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Terminate Employee</DialogTitle>
+          </DialogHeader>
+          {terminatingEmployee && (
+            <form onSubmit={handleTerminateConfirm}>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Warning:</strong> You are about to terminate{" "}
+                    <strong>{terminatingEmployee.name}</strong>.
+                  </p>
+                  {vehicles.filter((v) => {
+                    const empId = typeof v.employeeId === 'object' && v.employeeId !== null
+                      ? (v.employeeId as any)._id
+                      : v.employeeId;
+                    return empId === terminatingEmployee._id;
+                  }).length > 0 && (
+                    <p className="text-sm text-yellow-800 mt-2">
+                      <strong>{vehicles.filter((v) => {
+                        const empId = typeof v.employeeId === 'object' && v.employeeId !== null
+                          ? (v.employeeId as any)._id
+                          : v.employeeId;
+                        return empId === terminatingEmployee._id;
+                      }).length}</strong> assigned vehicle(s) will be unassigned.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="terminationDate">
+                    Termination Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="terminationDate"
+                    type="date"
+                    value={terminateFormData.date}
+                    onChange={(e) =>
+                      setTerminateFormData({ ...terminateFormData, date: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="terminationReason">
+                    Reason for Termination <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="terminationReason"
+                    value={terminateFormData.reason}
+                    onChange={(e) =>
+                      setTerminateFormData({ ...terminateFormData, reason: e.target.value })
+                    }
+                    placeholder="Enter reason for termination"
+                    required
+                  />
+                </div>
+              </div>
+              <DialogFooter className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsTerminateDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="destructive">
+                  Terminate Employee
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
