@@ -154,7 +154,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500">
+          {/* <div className="mt-6 text-center text-sm text-gray-500">
             <p>Default Credentials:</p>
             <p className="font-mono text-xs mt-1">
               Admin: admin / 12345678
@@ -162,7 +162,7 @@ export default function LoginPage() {
             <p className="font-mono text-xs">
               Super Admin: superadmin / 12345678
             </p>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

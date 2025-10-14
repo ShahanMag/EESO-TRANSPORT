@@ -71,6 +71,7 @@ export async function PUT(
 
     // Add optional fields if provided
     if (body.joinDate !== undefined) updateData.joinDate = body.joinDate;
+    if (body.imageUrls !== undefined) updateData.imageUrls = body.imageUrls;
 
     const employee = await Employee.findByIdAndUpdate(id, updateData, {
       new: true,

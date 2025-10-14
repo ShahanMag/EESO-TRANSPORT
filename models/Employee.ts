@@ -6,6 +6,7 @@ export interface IEmployee extends Document {
   phone?: string;
   type: "employee" | "agent";
   joinDate?: Date;
+  imageUrls?: string[];
   isDeleted: boolean;
   deletedAt?: Date;
   createdAt: Date;
@@ -52,6 +53,10 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
     },
     joinDate: {
       type: Date,
+    },
+    imageUrls: {
+      type: [String],
+      default: [],
     },
     isDeleted: {
       type: Boolean,

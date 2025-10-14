@@ -19,8 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, X, Upload, Download, UserX } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Upload, Download, UserX, ImagePlus } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import Image from "next/image";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -33,6 +34,7 @@ interface Employee {
   phone?: string;
   type: "employee" | "agent";
   joinDate?: string;
+  imageUrls?: string[];
 }
 
 interface Vehicle {
@@ -59,6 +61,8 @@ export default function EmployeesPage() {
   });
   const [selectedVehicles, setSelectedVehicles] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
@@ -122,6 +126,48 @@ export default function EmployeesPage() {
     }
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImage(true);
+    const newImageUrls: string[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          newImageUrls.push(data.url);
+        } else {
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+
+      setImageUrls([...imageUrls, ...newImageUrls]);
+      toast.success(`${newImageUrls.length} image(s) uploaded successfully`);
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      toast.error("Error uploading images");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  }
+
+  function handleRemoveImage(index: number) {
+    setImageUrls(imageUrls.filter((_, i) => i !== index));
+  }
+
   function validateForm() {
     const newErrors: Record<string, string> = {};
 
@@ -161,6 +207,7 @@ export default function EmployeesPage() {
           phone: formData.phone,
           type: formData.type,
           joinDate: formData.joinDate ? new Date(formData.joinDate) : undefined,
+          imageUrls: imageUrls,
         }),
       });
 
@@ -305,6 +352,7 @@ export default function EmployeesPage() {
               ? new Date(fullEmployee.joinDate).toISOString().split("T")[0]
               : "",
           });
+          setImageUrls(fullEmployee.imageUrls || []);
           // Load vehicles assigned to this employee
           const assignedVehicles = vehicles
             .filter((v) => {
@@ -329,6 +377,7 @@ export default function EmployeesPage() {
       setEditingEmployee(null);
       setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
       setSelectedVehicles([]);
+      setImageUrls([]);
     }
     setErrors({});
     setIsDialogOpen(true);
@@ -339,6 +388,7 @@ export default function EmployeesPage() {
     setEditingEmployee(null);
     setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
     setSelectedVehicles([]);
+    setImageUrls([]);
     setErrors({});
   }
 
@@ -585,6 +635,9 @@ export default function EmployeesPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Image
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -619,6 +672,23 @@ export default function EmployeesPage() {
 
               return (
                 <tr key={employee._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {employee.imageUrls && employee.imageUrls.length > 0 ? (
+                      <Image
+                        src={employee.imageUrls[0]}
+                        alt={employee.name}
+                        width={40}
+                        height={40}
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500 text-xs font-medium">
+                          {employee.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {employee.name}
                   </td>
@@ -796,6 +866,58 @@ export default function EmployeesPage() {
                     {selectedVehicles.length} vehicle(s) selected
                   </p>
                 )}
+              </div>
+              <div>
+                <Label>Employee Images (Optional)</Label>
+                <div className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      id="image-upload-input"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={uploadingImage}
+                      className="w-full"
+                    >
+                      <ImagePlus className="mr-2 h-4 w-4" />
+                      {uploadingImage ? "Uploading..." : "Upload Images"}
+                    </Button>
+                  </div>
+                  {imageUrls.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <Image
+                            src={url}
+                            alt={`Employee image ${index + 1}`}
+                            width={100}
+                            height={100}
+                            className="w-full h-24 object-cover rounded-md border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {imageUrls.length > 0 && (
+                    <p className="text-xs text-gray-600">
+                      {imageUrls.length} image(s) uploaded
+                    </p>
+                  )}
+                </div>
               </div>
               {errors.submit && (
                 <p className="text-sm text-red-500">{errors.submit}</p>
