@@ -60,6 +60,15 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
+
+    // Clean up date fields - prevent invalid dates
+    if (body.startDate !== undefined && (!body.startDate || body.startDate === "")) {
+      delete body.startDate;
+    }
+    if (body.contractExpiry !== undefined && (!body.contractExpiry || body.contractExpiry === "")) {
+      delete body.contractExpiry;
+    }
+
     const vehicle = await Vehicle.create(body);
 
     // Populate employee data

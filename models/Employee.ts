@@ -23,7 +23,6 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
     iqamaId: {
       type: String,
       required: [true, "Iqama ID is required"],
-      unique: true,
       validate: {
         validator: function (v: string) {
           return /^\d{10}$/.test(v);
@@ -75,6 +74,15 @@ const EmployeeSchema: Schema<IEmployee> = new Schema(
 // Indexes for query optimization
 EmployeeSchema.index({ type: 1 }); // For filtering by employee type (employee/agent)
 EmployeeSchema.index({ isDeleted: 1 }); // For filtering soft-deleted records
+
+// Partial unique index: unique iqama ID only for non-deleted records
+EmployeeSchema.index(
+  { iqamaId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isDeleted: false }
+  }
+);
 
 // Query middleware to automatically filter out deleted records
 EmployeeSchema.pre(/^find/, function (next) {

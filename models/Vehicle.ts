@@ -22,7 +22,6 @@ const VehicleSchema: Schema<IVehicle> = new Schema(
     number: {
       type: String,
       required: [true, "Vehicle number is required"],
-      unique: true,
       trim: true,
     },
     name: {
@@ -85,6 +84,15 @@ VehicleSchema.index({ employeeId: 1 }); // For filtering by employee
 VehicleSchema.index({ type: 1 }); // For filtering by vehicle type (private/public)
 VehicleSchema.index({ createdAt: -1 }); // For date range filtering in reports
 VehicleSchema.index({ isDeleted: 1 }); // For filtering soft-deleted records
+
+// Partial unique index: unique vehicle number only for non-deleted records
+VehicleSchema.index(
+  { number: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isDeleted: false }
+  }
+);
 
 // Query middleware to automatically filter out deleted records
 VehicleSchema.pre(/^find/, function (next) {

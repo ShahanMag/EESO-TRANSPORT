@@ -168,8 +168,8 @@ export default function VehiclesPage() {
           vehicleAmount: formData.vehicleAmount
             ? parseFloat(formData.vehicleAmount)
             : undefined,
-          startDate: formData.startDate ? new Date(formData.startDate) : undefined,
-          contractExpiry: formData.contractExpiry
+          startDate: formData.startDate && formData.startDate.trim() !== "" ? new Date(formData.startDate) : undefined,
+          contractExpiry: formData.contractExpiry && formData.contractExpiry.trim() !== ""
             ? new Date(formData.contractExpiry)
             : undefined,
           description: formData.description || undefined,
@@ -344,6 +344,53 @@ export default function VehiclesPage() {
     toast.success("Template downloaded successfully");
   }
 
+  // Helper function to parse various date formats
+  function parseExcelDate(dateValue: any): Date | null {
+    if (!dateValue) return null;
+
+    // If it's already a Date object
+    if (dateValue instanceof Date) {
+      return isNaN(dateValue.getTime()) ? null : dateValue;
+    }
+
+    // If it's a string
+    if (typeof dateValue === 'string') {
+      const trimmed = dateValue.trim();
+      if (trimmed === '') return null;
+
+      // Try to parse MM/DD/YYYY or M/D/YYYY format (Excel default)
+      const slashFormat = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      const slashMatch = trimmed.match(slashFormat);
+      if (slashMatch) {
+        const [, month, day, year] = slashMatch;
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return isNaN(date.getTime()) ? null : date;
+      }
+
+      // Try to parse YYYY-MM-DD format (ISO)
+      const isoFormat = /^(\d{4})-(\d{2})-(\d{2})$/;
+      const isoMatch = trimmed.match(isoFormat);
+      if (isoMatch) {
+        const date = new Date(trimmed);
+        return isNaN(date.getTime()) ? null : date;
+      }
+
+      // Try general date parsing as fallback
+      const date = new Date(trimmed);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    // If it's a number (Excel serial date)
+    if (typeof dateValue === 'number') {
+      // Excel dates are stored as days since 1900-01-01
+      const excelEpoch = new Date(1900, 0, 1);
+      const date = new Date(excelEpoch.getTime() + (dateValue - 2) * 86400000);
+      return isNaN(date.getTime()) ? null : date;
+    }
+
+    return null;
+  }
+
   async function handleBulkUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -371,8 +418,11 @@ export default function VehiclesPage() {
 
           const type = (row["Type (private/public)"] || "private").toLowerCase();
           const vehicleAmount = row["Vehicle Amount (SAR)"];
-          const startDate = row["Start Date (YYYY-MM-DD)"];
-          const contractExpiry = row["Contract Expiry (YYYY-MM-DD)"];
+
+          // Parse dates using the helper function
+          const startDate = parseExcelDate(row["Start Date (YYYY-MM-DD)"]);
+          const contractExpiry = parseExcelDate(row["Contract Expiry (YYYY-MM-DD)"]);
+
           const employeeIqamaId = row["Employee Iqama ID (Optional)"];
 
           // Validate type
@@ -403,8 +453,8 @@ export default function VehiclesPage() {
               type: type,
               vehicleModel: row["Model"] || undefined,
               vehicleAmount: vehicleAmount ? parseFloat(vehicleAmount.toString()) : undefined,
-              startDate: startDate ? new Date(startDate) : undefined,
-              contractExpiry: contractExpiry ? new Date(contractExpiry) : undefined,
+              startDate: startDate || undefined,
+              contractExpiry: contractExpiry || undefined,
               description: row["Description"] || undefined,
               employeeId: employeeId,
             }),
@@ -525,7 +575,16 @@ export default function VehiclesPage() {
                 Vehicle Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Serial Number
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Amount (SAR)
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Start Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Expiry Date
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Assigned Employee
@@ -549,7 +608,32 @@ export default function VehiclesPage() {
                   {vehicle.name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {vehicle.serialNumber || "-"}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    vehicle.type === "private"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-green-100 text-green-800"
+                  }`}>
+                    {vehicle.type === "private" ? "Private" : "Public"}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {vehicle.vehicleAmount
+                    ? new Intl.NumberFormat('en-SA', {
+                        style: 'currency',
+                        currency: 'SAR',
+                        minimumFractionDigits: 0
+                      }).format(vehicle.vehicleAmount)
+                    : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {vehicle.startDate && new Date(vehicle.startDate).getFullYear() !== 1970
+                    ? new Date(vehicle.startDate).toLocaleDateString('en-GB')
+                    : "-"}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {vehicle.contractExpiry && new Date(vehicle.contractExpiry).getFullYear() !== 1970
+                    ? new Date(vehicle.contractExpiry).toLocaleDateString('en-GB')
+                    : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.employeeId
@@ -606,12 +690,33 @@ export default function VehiclesPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{vehicle.number}</h3>
                   <p className="text-sm text-gray-600">{vehicle.name}</p>
-                  {vehicle.serialNumber && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      SN: {vehicle.serialNumber}
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      vehicle.type === "private"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                    }`}>
+                      {vehicle.type === "private" ? "Private" : "Public"}
+                    </span>
+                  </div>
+                  {vehicle.vehicleAmount && (
+                    <p className="text-sm text-gray-700 font-medium mt-2">
+                      {new Intl.NumberFormat('en-SA', {
+                        style: 'currency',
+                        currency: 'SAR',
+                        minimumFractionDigits: 0
+                      }).format(vehicle.vehicleAmount)}
                     </p>
                   )}
-                  <p className="text-sm text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 mt-2 space-y-1">
+                    {vehicle.startDate && new Date(vehicle.startDate).getFullYear() !== 1970 && (
+                      <p>Start: {new Date(vehicle.startDate).toLocaleDateString('en-GB')}</p>
+                    )}
+                    {vehicle.contractExpiry && new Date(vehicle.contractExpiry).getFullYear() !== 1970 && (
+                      <p>Expiry: {new Date(vehicle.contractExpiry).toLocaleDateString('en-GB')}</p>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
                     {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
                   </p>
                 </div>
@@ -867,8 +972,8 @@ export default function VehiclesPage() {
                 <p><strong>Type:</strong> Either "private" or "public" (default: private)</p>
                 <p><strong>Model:</strong> Optional - Year or model info (e.g., 2023)</p>
                 <p><strong>Vehicle Amount:</strong> Optional - Price in SAR (e.g., 150000)</p>
-                <p><strong>Start Date:</strong> Optional - Format YYYY-MM-DD (e.g., 2024-01-15)</p>
-                <p><strong>Contract Expiry:</strong> Optional - Format YYYY-MM-DD (e.g., 2025-01-15)</p>
+                <p><strong>Start Date:</strong> Optional - YYYY-MM-DD or MM/DD/YYYY (e.g., 2024-01-15 or 1/15/2024)</p>
+                <p><strong>Contract Expiry:</strong> Optional - YYYY-MM-DD or MM/DD/YYYY (e.g., 2025-01-15 or 1/15/2025)</p>
                 <p><strong>Description:</strong> Optional - Additional notes</p>
                 <p><strong>Employee Iqama ID:</strong> Optional - Assign to employee by Iqama ID</p>
               </div>

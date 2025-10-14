@@ -76,8 +76,13 @@ export async function PUT(
     if (body.type !== undefined) updateData.type = body.type;
     if (body.vehicleModel !== undefined) updateData.vehicleModel = body.vehicleModel;
     if (body.vehicleAmount !== undefined) updateData.vehicleAmount = body.vehicleAmount;
-    if (body.startDate !== undefined) updateData.startDate = body.startDate;
-    if (body.contractExpiry !== undefined) updateData.contractExpiry = body.contractExpiry;
+    // Only update dates if they have valid values
+    if (body.startDate !== undefined && body.startDate !== "" && body.startDate !== null) {
+      updateData.startDate = body.startDate;
+    }
+    if (body.contractExpiry !== undefined && body.contractExpiry !== "" && body.contractExpiry !== null) {
+      updateData.contractExpiry = body.contractExpiry;
+    }
     if (body.description !== undefined) updateData.description = body.description;
 
     const vehicle = await Vehicle.findByIdAndUpdate(id, updateData, {
