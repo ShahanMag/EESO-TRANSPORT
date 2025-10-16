@@ -69,8 +69,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
-      await fetchStats();
-      await fetchRecentData();
+      // Fetch all data in parallel for faster loading
+      await Promise.all([fetchStats(), fetchRecentData()]);
       setLoading(false);
     }
     loadData();

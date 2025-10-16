@@ -76,18 +76,22 @@ export default function VehiclesPage() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Debounced search effect
+  // Initial load - fetch immediately
   useEffect(() => {
+    fetchVehicles();
+    fetchEmployees();
+  }, []);
+
+  // Debounced search effect - only for search
+  useEffect(() => {
+    if (searchTerm === "") return; // Skip on empty search (handled by initial load)
+
     const delayDebounceFn = setTimeout(() => {
       fetchVehicles(searchTerm);
     }, 500); // 500ms delay after user stops typing
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
 
   async function fetchVehicles(search = "") {
     try {
@@ -406,6 +410,7 @@ export default function VehiclesPage() {
     if (!file) return;
 
     setIsUploading(true);
+    toast.info("Processing file... Please wait.");
 
     try {
       const data = await file.arrayBuffer();
@@ -413,19 +418,11 @@ export default function VehiclesPage() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      let successCount = 0;
-      let errorCount = 0;
-      const errors: string[] = [];
+      const vehicles: any[] = [];
 
+      // Prepare all vehicles without frontend validation
       for (const row of jsonData as any[]) {
         try {
-          // Validate required fields
-          if (!row["Vehicle Number"] || !row["Vehicle Name"]) {
-            errors.push(`Row with number "${row["Vehicle Number"] || "unknown"}" is missing required fields`);
-            errorCount++;
-            continue;
-          }
-
           const type = (row["Type (private/public)"] || "private").toLowerCase();
           const vehicleAmount = row["Vehicle Amount (SAR)"];
 
@@ -435,67 +432,63 @@ export default function VehiclesPage() {
 
           const employeeIqamaId = row["Employee Iqama ID (Optional)"];
 
-          // Validate type
-          if (type !== "private" && type !== "public") {
-            errors.push(`Row "${row["Vehicle Number"]}": Type must be "private" or "public"`);
-            errorCount++;
-            continue;
-          }
+          // Build vehicle data object
+          const vehicleData: any = {
+            number: row["Vehicle Number"],
+            name: row["Vehicle Name"],
+            type: type,
+          };
 
-          // Find employee by Iqama ID if provided
-          let employeeId = null;
-          if (employeeIqamaId) {
-            const employee = employees.find((e) => e._id === employeeIqamaId || (e as any).iqamaId === employeeIqamaId);
-            if (employee) {
-              employeeId = employee._id;
-            } else {
-              errors.push(`Row "${row["Vehicle Number"]}": Employee with Iqama ID "${employeeIqamaId}" not found`);
-            }
-          }
+          // Add optional fields only if they have values
+          if (row["Serial Number"]) vehicleData.serialNumber = row["Serial Number"];
+          if (row["Model"]) vehicleData.vehicleModel = row["Model"];
+          if (vehicleAmount) vehicleData.vehicleAmount = parseFloat(vehicleAmount.toString());
+          if (startDate) vehicleData.startDate = startDate.toISOString().split('T')[0];
+          if (contractExpiry) vehicleData.contractExpiry = contractExpiry.toISOString().split('T')[0];
+          if (row["Description"]) vehicleData.description = row["Description"];
+          if (employeeIqamaId) vehicleData.iqamaId = employeeIqamaId;
 
-          const res = await fetch(`${API_URL}/api/vehicles`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              number: row["Vehicle Number"],
-              name: row["Vehicle Name"],
-              serialNumber: row["Serial Number"] || undefined,
-              type: type,
-              vehicleModel: row["Model"] || undefined,
-              vehicleAmount: vehicleAmount ? parseFloat(vehicleAmount.toString()) : undefined,
-              startDate: startDate || undefined,
-              contractExpiry: contractExpiry || undefined,
-              description: row["Description"] || undefined,
-              employeeId: employeeId,
-            }),
-          });
-
-          const result = await res.json();
-
-          if (result.success) {
-            successCount++;
-          } else {
-            errors.push(`Row "${row["Vehicle Number"]}": ${result.error}`);
-            errorCount++;
-          }
+          vehicles.push(vehicleData);
         } catch (error) {
-          errors.push(`Row "${row["Vehicle Number"]}": ${error}`);
-          errorCount++;
+          // Silently continue, let backend handle validation
+          console.warn(`Row parsing warning:`, error);
         }
       }
 
-      if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} vehicle(s)`);
+      if (vehicles.length === 0) {
+        toast.error("No vehicles found in the file");
+        setIsBulkUploadDialogOpen(false);
+        setIsUploading(false);
+        e.target.value = "";
+        return;
+      }
+
+      toast.info(`Uploading ${vehicles.length} vehicle(s)...`);
+
+      // Send all vehicles in a single request
+      const res = await fetch(`${API_URL}/api/vehicles/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ vehicles }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success(`Successfully uploaded ${result.successCount} vehicle(s)`);
+        if (result.errors && result.errors.length > 0) {
+          toast.warning(`${result.errors.length} vehicle(s) failed. Check console for details.`);
+          console.error("Backend errors:", result.errors);
+        }
         fetchVehicles(searchTerm);
+        setIsBulkUploadDialogOpen(false);
+      } else {
+        toast.error(result.error || "Failed to upload vehicles");
+        if (result.errors && result.errors.length > 0) {
+          console.error("Backend errors:", result.errors);
+        }
       }
-
-      if (errorCount > 0) {
-        toast.error(`Failed to upload ${errorCount} vehicle(s). Check console for details.`);
-        console.error("Bulk upload errors:", errors);
-      }
-
-      setIsBulkUploadDialogOpen(false);
     } catch (error) {
       console.error("Error processing file:", error);
       toast.error("Error processing file. Please check the format.");

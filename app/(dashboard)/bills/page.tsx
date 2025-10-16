@@ -62,6 +62,10 @@ export default function BillsPage() {
     employeeId: "none",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    open: boolean;
+    id: string | null;
+  }>({ open: false, id: null });
 
   useEffect(() => {
     fetchBills();
@@ -184,11 +188,15 @@ export default function BillsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this transaction?")) return;
+  function handleDelete(id: string) {
+    setDeleteConfirmation({ open: true, id });
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirmation.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/bills/${id}`, {
+      const res = await fetch(`${API_URL}/api/bills/${deleteConfirmation.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -203,6 +211,8 @@ export default function BillsPage() {
     } catch (error) {
       console.error("Error deleting bill:", error);
       toast.error("An error occurred while deleting transaction");
+    } finally {
+      setDeleteConfirmation({ open: false, id: null });
     }
   }
 
@@ -525,6 +535,18 @@ export default function BillsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmation.open}
+        onOpenChange={(open) => setDeleteConfirmation({ open, id: null })}
+        onConfirm={confirmDelete}
+        title="Delete Transaction"
+        description="Are you sure you want to delete this transaction? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }

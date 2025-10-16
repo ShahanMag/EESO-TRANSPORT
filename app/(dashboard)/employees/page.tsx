@@ -75,18 +75,22 @@ export default function EmployeesPage() {
     reason: "",
   });
 
-  // Debounced search effect
+  // Initial load - fetch immediately
   useEffect(() => {
+    fetchEmployees();
+    fetchVehicles();
+  }, []);
+
+  // Debounced search effect - only for search
+  useEffect(() => {
+    if (searchTerm === "") return; // Skip on empty search (handled by initial load)
+
     const delayDebounceFn = setTimeout(() => {
       fetchEmployees(searchTerm);
     }, 500); // 500ms delay after user stops typing
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
-
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
 
   async function fetchEmployees(search = "") {
     try {
@@ -447,28 +451,49 @@ export default function EmployeesPage() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      let successCount = 0;
-      let errorCount = 0;
+      const employees: any[] = [];
       const errors: string[] = [];
 
+      // Validate and prepare all employees first
       for (const row of jsonData as any[]) {
         try {
           // Validate required fields (phone is now optional)
           if (!row.Name || !row["Iqama ID (10 digits)"]) {
             errors.push(`Row with name "${row.Name || "unknown"}" is missing required fields`);
-            errorCount++;
             continue;
           }
 
           const iqamaId = row["Iqama ID (10 digits)"].toString();
           let phone = row["Phone (966XXXXXXXXX)"] ? row["Phone (966XXXXXXXXX)"].toString().trim() : "";
           const type = (row["Type (employee/agent)"] || "employee").toLowerCase();
-          const joinDate = row["Join Date (YYYY-MM-DD)"];
+
+          // Handle date conversion - Excel can return dates in various formats
+          let joinDate = null;
+          if (row["Join Date (YYYY-MM-DD)"]) {
+            const rawDate = row["Join Date (YYYY-MM-DD)"];
+
+            // If it's already a Date object (Excel sometimes does this)
+            if (rawDate instanceof Date) {
+              joinDate = rawDate.toISOString().split('T')[0];
+            }
+            // If it's an Excel serial number (number of days since 1900-01-01)
+            else if (typeof rawDate === 'number') {
+              const excelEpoch = new Date(1900, 0, 1);
+              const date = new Date(excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000);
+              joinDate = date.toISOString().split('T')[0];
+            }
+            // If it's a string, try to parse it
+            else if (typeof rawDate === 'string') {
+              const parsedDate = new Date(rawDate);
+              if (!isNaN(parsedDate.getTime())) {
+                joinDate = parsedDate.toISOString().split('T')[0];
+              }
+            }
+          }
 
           // Validate iqama ID
           if (!/^\d{10}$/.test(iqamaId)) {
             errors.push(`Row "${row.Name}": Iqama ID must be exactly 10 digits`);
-            errorCount++;
             continue;
           }
 
@@ -485,86 +510,70 @@ export default function EmployeesPage() {
             // Now validate the final format
             if (!/^\+966\d{9}$/.test(phone)) {
               errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
-              errorCount++;
               continue;
             }
-          } else {
-            phone = undefined;
           }
 
           // Validate type
           if (type !== "employee" && type !== "agent") {
             errors.push(`Row "${row.Name}": Type must be "employee" or "agent"`);
-            errorCount++;
             continue;
           }
 
-          const res = await fetch(`${API_URL}/api/employees`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              name: row.Name,
-              iqamaId: iqamaId,
-              phone: phone || undefined,
-              type: type,
-              joinDate: joinDate ? new Date(joinDate) : undefined,
-            }),
-          });
+          // Add valid employee to array
+          const employeeData: any = {
+            name: row.Name,
+            iqamaId: iqamaId,
+            type: type,
+          };
 
-          const result = await res.json();
+          // Only add optional fields if they have values
+          if (phone) employeeData.phone = phone;
+          if (joinDate) employeeData.joinDate = joinDate;
 
-          if (result.success) {
-            const employeeId = result.data._id;
-
-            // Try to assign vehicle if vehicle number is provided
-            const vehicleNumber = row["Vehicle Number - Optional"];
-            if (vehicleNumber && vehicleNumber.trim()) {
-              const vehicle = vehicles.find((v) => v.number === vehicleNumber.trim());
-              if (vehicle) {
-                try {
-                  await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                      number: vehicle.number,
-                      name: vehicle.name,
-                      employeeId: employeeId,
-                    }),
-                  });
-                } catch (vehicleError) {
-                  // Just warn, don't fail the employee creation
-                  errors.push(`Row "${row.Name}": Employee created but failed to assign vehicle "${vehicleNumber}"`);
-                }
-              } else {
-                // Just warn, don't fail the employee creation
-                errors.push(`Row "${row.Name}": Employee created but vehicle "${vehicleNumber}" not found`);
-              }
-            }
-
-            successCount++;
-          } else {
-            errors.push(`Row "${row.Name}": ${result.error}`);
-            errorCount++;
-          }
+          employees.push(employeeData);
         } catch (error) {
           errors.push(`Row "${row.Name}": ${error}`);
-          errorCount++;
         }
       }
 
-      if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} employee(s)`);
+      // If there are validation errors, show them
+      if (errors.length > 0) {
+        toast.error(`${errors.length} row(s) failed validation. Check console for details.`);
+        console.error("Bulk upload validation errors:", errors);
+      }
+
+      // If there are no valid employees, exit
+      if (employees.length === 0) {
+        toast.error("No valid employees to upload");
+        setIsBulkUploadDialogOpen(false);
+        return;
+      }
+
+      // Send all employees in a single request
+      const res = await fetch(`${API_URL}/api/employees/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ employees }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success(`Successfully uploaded ${result.successCount} employee(s)`);
+        if (result.errors && result.errors.length > 0) {
+          toast.warning(`${result.errors.length} employee(s) failed. Check console for details.`);
+          console.error("Bulk upload errors:", result.errors);
+        }
         fetchEmployees(searchTerm);
+        setIsBulkUploadDialogOpen(false);
+      } else {
+        toast.error(result.error || "Failed to upload employees");
+        if (result.errors) {
+          console.error("Bulk upload errors:", result.errors);
+        }
       }
-
-      if (errorCount > 0) {
-        toast.error(`Failed to upload ${errorCount} employee(s). Check console for details.`);
-        console.error("Bulk upload errors:", errors);
-      }
-
-      setIsBulkUploadDialogOpen(false);
     } catch (error) {
       console.error("Error processing file:", error);
       toast.error("Error processing file. Please check the format.");

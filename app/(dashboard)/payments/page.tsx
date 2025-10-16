@@ -77,6 +77,11 @@ export default function PaymentsPage() {
   const [editingInstallment, setEditingInstallment] = useState<Installment | null>(null);
   const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(new Set());
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    open: boolean;
+    type: "payment" | "installment" | null;
+    id: string | null;
+  }>({ open: false, type: null, id: null });
 
   const [paymentFormData, setPaymentFormData] = useState({
     vehicleId: "",
@@ -310,39 +315,59 @@ export default function PaymentsPage() {
     }
   }
 
-  async function handleDeletePayment(id: string) {
-    if (!confirm("Are you sure you want to delete this payment? All installments will also be deleted.")) return;
+  function handleDeletePayment(id: string) {
+    setDeleteConfirmation({ open: true, type: "payment", id });
+  }
+
+  async function confirmDeletePayment() {
+    if (!deleteConfirmation.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/payments/${id}`, {
+      const res = await fetch(`${API_URL}/api/payments/${deleteConfirmation.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Payment deleted successfully");
         fetchPayments();
+      } else {
+        toast.error(data.error || "Failed to delete payment");
       }
     } catch (error) {
       console.error("Error deleting payment:", error);
+      toast.error("An error occurred while deleting payment");
+    } finally {
+      setDeleteConfirmation({ open: false, type: null, id: null });
     }
   }
 
-  async function handleDeleteInstallment(id: string) {
-    if (!confirm("Are you sure you want to delete this installment?")) return;
+  function handleDeleteInstallment(id: string) {
+    setDeleteConfirmation({ open: true, type: "installment", id });
+  }
+
+  async function confirmDeleteInstallment() {
+    if (!deleteConfirmation.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/installments/${id}`, {
+      const res = await fetch(`${API_URL}/api/installments/${deleteConfirmation.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       const data = await res.json();
 
       if (data.success) {
+        toast.success("Installment deleted successfully");
         fetchPayments();
+      } else {
+        toast.error(data.error || "Failed to delete installment");
       }
     } catch (error) {
       console.error("Error deleting installment:", error);
+      toast.error("An error occurred while deleting installment");
+    } finally {
+      setDeleteConfirmation({ open: false, type: null, id: null });
     }
   }
 
@@ -871,6 +896,32 @@ export default function PaymentsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmation.open}
+        onOpenChange={(open) =>
+          setDeleteConfirmation({ open, type: null, id: null })
+        }
+        onConfirm={
+          deleteConfirmation.type === "payment"
+            ? confirmDeletePayment
+            : confirmDeleteInstallment
+        }
+        title={
+          deleteConfirmation.type === "payment"
+            ? "Delete Payment"
+            : "Delete Installment"
+        }
+        description={
+          deleteConfirmation.type === "payment"
+            ? "Are you sure you want to delete this payment? All installments will also be deleted. This action cannot be undone."
+            : "Are you sure you want to delete this installment? This action cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }
