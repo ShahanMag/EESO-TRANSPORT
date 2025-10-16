@@ -10,6 +10,8 @@ import { Shield, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 export default function LoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -42,9 +44,10 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(formData),
       });
 

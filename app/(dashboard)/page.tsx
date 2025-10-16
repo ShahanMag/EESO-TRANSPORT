@@ -13,6 +13,7 @@ import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
 import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart";
 import { ChartCarousel } from "@/components/charts/chart-carousel";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
+import { apiRequest } from "@/lib/api-config";
 
 interface Installment {
   _id: string;
@@ -79,10 +80,10 @@ export default function DashboardPage() {
     try {
       const [employeesRes, vehiclesRes, paymentsRes, billsRes] =
         await Promise.all([
-          fetch("/api/employees"),
-          fetch("/api/vehicles"),
-          fetch("/api/payments"),
-          fetch("/api/bills"),
+          apiRequest("/api/employees"),
+          apiRequest("/api/vehicles"),
+          apiRequest("/api/payments"),
+          apiRequest("/api/bills"),
         ]);
 
       const [employees, vehicles, payments, bills] = await Promise.all([
@@ -107,8 +108,8 @@ export default function DashboardPage() {
     try {
       // Fetch all payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
-        fetch("/api/payments"),
-        fetch("/api/installments"),
+        apiRequest("/api/payments"),
+        apiRequest("/api/installments"),
       ]);
 
       const [paymentsData, allInstallmentsData] = await Promise.all([
@@ -152,7 +153,7 @@ export default function DashboardPage() {
       }
 
       // Fetch all bills
-      const billsRes = await fetch("/api/bills");
+      const billsRes = await apiRequest("/api/bills");
       const billsData = await billsRes.json();
 
       if (billsData.success) {

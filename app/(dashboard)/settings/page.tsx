@@ -23,6 +23,8 @@ import { Plus, UserCog, Shield, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Admin {
   _id: string;
   username: string;
@@ -51,7 +53,9 @@ export default function SettingsPage() {
   async function fetchAdmins() {
     try {
       setLoading(true);
-      const res = await fetch("/api/admins");
+      const res = await fetch(`${API_URL}/api/admins`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setAdmins(data.data);
@@ -65,8 +69,9 @@ export default function SettingsPage() {
 
   async function handleInitialize() {
     try {
-      const res = await fetch("/api/admins/init", {
+      const res = await fetch(`${API_URL}/api/admins/init`, {
         method: "POST",
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -124,9 +129,10 @@ export default function SettingsPage() {
         payload.password = formData.password;
       }
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -183,8 +189,9 @@ export default function SettingsPage() {
     if (!deletingAdmin) return;
 
     try {
-      const res = await fetch(`/api/admins/${deletingAdmin._id}`, {
+      const res = await fetch(`${API_URL}/api/admins/${deletingAdmin._id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
 

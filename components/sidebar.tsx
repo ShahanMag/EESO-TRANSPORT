@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 const topNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Employees", href: "/employees", icon: Users },
@@ -57,7 +59,9 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
 
   async function fetchUser() {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch(`${API_URL}/api/auth/me`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setUser(data.data);
@@ -70,8 +74,9 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   async function handleLogout() {
     try {
       setLoggingOut(true);
-      const res = await fetch("/api/auth/logout", {
+      const res = await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
+        credentials: "include",
       });
       const data = await res.json();
 

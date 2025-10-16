@@ -26,6 +26,8 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Installment {
   _id: string;
   paymentId: string;
@@ -143,8 +145,12 @@ export default function PaymentsPage() {
     try {
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
-        fetch("/api/payments"),
-        fetch("/api/installments"),
+        fetch(`${API_URL}/api/payments`, {
+          credentials: "include",
+        }),
+        fetch(`${API_URL}/api/installments`, {
+          credentials: "include",
+        }),
       ]);
 
       const [paymentsData, allInstallmentsData] = await Promise.all([
@@ -185,7 +191,9 @@ export default function PaymentsPage() {
 
   async function fetchVehicles() {
     try {
-      const res = await fetch("/api/vehicles");
+      const res = await fetch(`${API_URL}/api/vehicles`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setVehicles(data.data);
@@ -240,9 +248,10 @@ export default function PaymentsPage() {
         : "/api/payments";
       const method = editingPayment ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           vehicleId: paymentFormData.vehicleId,
           totalAmount: parseFloat(paymentFormData.totalAmount),
@@ -275,9 +284,10 @@ export default function PaymentsPage() {
         : "/api/installments";
       const method = editingInstallment ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           paymentId: selectedPayment._id,
           amount: parseFloat(installmentFormData.amount),
@@ -304,7 +314,10 @@ export default function PaymentsPage() {
     if (!confirm("Are you sure you want to delete this payment? All installments will also be deleted.")) return;
 
     try {
-      const res = await fetch(`/api/payments/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/api/payments/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -319,7 +332,10 @@ export default function PaymentsPage() {
     if (!confirm("Are you sure you want to delete this installment?")) return;
 
     try {
-      const res = await fetch(`/api/installments/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/api/installments/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await res.json();
 
       if (data.success) {

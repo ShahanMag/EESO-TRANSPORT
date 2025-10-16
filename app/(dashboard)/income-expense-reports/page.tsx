@@ -18,6 +18,8 @@ import { Download, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-utils";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Bill {
   _id: string;
   type: "income" | "expense";
@@ -49,7 +51,9 @@ export default function IncomeExpenseReportsPage() {
   async function fetchBills() {
     try {
       setLoading(true);
-      const res = await fetch("/api/bills");
+      const res = await fetch(`${API_URL}/api/bills`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setBills(data.data);

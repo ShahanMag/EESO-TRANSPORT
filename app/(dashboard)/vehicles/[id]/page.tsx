@@ -28,6 +28,8 @@ import {
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { toast } from "sonner";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Vehicle {
   _id: string;
   number: string;
@@ -102,7 +104,9 @@ export default function VehicleDetailPage() {
 
   async function fetchVehicleDetails() {
     try {
-      const res = await fetch(`/api/vehicles/${vehicleId}`);
+      const res = await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setVehicle(data.data);
@@ -121,8 +125,12 @@ export default function VehicleDetailPage() {
     try {
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
-        fetch(`/api/payments?vehicleId=${vehicleId}`),
-        fetch("/api/installments"),
+        fetch(`${API_URL}/api/payments?vehicleId=${vehicleId}`, {
+          credentials: "include",
+        }),
+        fetch(`${API_URL}/api/installments`, {
+          credentials: "include",
+        }),
       ]);
 
       const [paymentsData, allInstallmentsData] = await Promise.all([
@@ -167,9 +175,10 @@ export default function VehicleDetailPage() {
   async function handlePaymentSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      const res = await fetch("/api/payments", {
+      const res = await fetch(`${API_URL}/api/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           vehicleId: vehicleId,
           totalAmount: parseFloat(paymentFormData.totalAmount),
@@ -202,9 +211,10 @@ export default function VehicleDetailPage() {
     if (!selectedPayment) return;
 
     try {
-      const res = await fetch("/api/installments", {
+      const res = await fetch(`${API_URL}/api/installments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           paymentId: selectedPayment._id,
           amount: parseFloat(installmentFormData.amount),
@@ -271,8 +281,9 @@ export default function VehicleDetailPage() {
     if (!deletingPaymentId) return;
 
     try {
-      const res = await fetch(`/api/payments/${deletingPaymentId}`, {
+      const res = await fetch(`${API_URL}/api/payments/${deletingPaymentId}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -300,8 +311,9 @@ export default function VehicleDetailPage() {
     if (!deletingInstallmentId) return;
 
     try {
-      const res = await fetch(`/api/installments/${deletingInstallmentId}`, {
+      const res = await fetch(`${API_URL}/api/installments/${deletingInstallmentId}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
 

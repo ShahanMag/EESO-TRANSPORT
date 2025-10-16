@@ -26,6 +26,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
+import { apiRequest } from "@/lib/api-config";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 interface Employee {
   _id: string;
@@ -97,7 +100,7 @@ export default function EmployeesPage() {
         ? `/api/employees?search=${encodeURIComponent(search)}`
         : "/api/employees";
 
-      const res = await fetch(url);
+      const res = await apiRequest(url);
       const data = await res.json();
 
       if (data.success) {
@@ -116,7 +119,7 @@ export default function EmployeesPage() {
 
   async function fetchVehicles() {
     try {
-      const res = await fetch("/api/vehicles");
+      const res = await apiRequest("/api/vehicles");
       const data = await res.json();
       if (data.success) {
         setVehicles(data.data);
@@ -139,7 +142,7 @@ export default function EmployeesPage() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const res = await fetch("/api/upload", {
+        const res = await apiRequest("/api/upload", {
           method: "POST",
           body: formData,
         });
@@ -198,9 +201,10 @@ export default function EmployeesPage() {
         : "/api/employees";
       const method = editingEmployee ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name: formData.name,
           iqamaId: formData.iqamaId,
@@ -227,9 +231,10 @@ export default function EmployeesPage() {
           );
 
           for (const vehicle of vehiclesToUnassign) {
-            await fetch(`/api/vehicles/${vehicle._id}`, {
+            await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({
                 number: vehicle.number,
                 name: vehicle.name,
@@ -248,9 +253,10 @@ export default function EmployeesPage() {
               ? (vehicle.employeeId as any)._id
               : vehicle.employeeId;
 
-            await fetch(`/api/vehicles/${vehicleId}`, {
+            await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({
                 number: vehicle.number,
                 name: vehicle.name,
@@ -301,9 +307,10 @@ export default function EmployeesPage() {
 
       // Unassign all vehicles
       for (const vehicle of assignedVehicles) {
-        await fetch(`/api/vehicles/${vehicle._id}`, {
+        await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             number: vehicle.number,
             name: vehicle.name,
@@ -313,8 +320,9 @@ export default function EmployeesPage() {
       }
 
       // Delete the employee
-      const res = await fetch(`/api/employees/${terminatingEmployee._id}`, {
+      const res = await fetch(`${API_URL}/api/employees/${terminatingEmployee._id}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -337,7 +345,9 @@ export default function EmployeesPage() {
     if (employee) {
       // Fetch complete employee data from API
       try {
-        const res = await fetch(`/api/employees/${employee._id}`);
+        const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
+          credentials: "include",
+        });
         const data = await res.json();
 
         if (data.success) {
@@ -489,9 +499,10 @@ export default function EmployeesPage() {
             continue;
           }
 
-          const res = await fetch("/api/employees", {
+          const res = await fetch(`${API_URL}/api/employees`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({
               name: row.Name,
               iqamaId: iqamaId,
@@ -512,9 +523,10 @@ export default function EmployeesPage() {
               const vehicle = vehicles.find((v) => v.number === vehicleNumber.trim());
               if (vehicle) {
                 try {
-                  await fetch(`/api/vehicles/${vehicle._id}`, {
+                  await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
+                    credentials: "include",
                     body: JSON.stringify({
                       number: vehicle.number,
                       name: vehicle.name,

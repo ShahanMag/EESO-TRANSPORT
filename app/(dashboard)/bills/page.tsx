@@ -26,6 +26,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Bill {
   _id: string;
   type: "income" | "expense";
@@ -85,7 +87,9 @@ export default function BillsPage() {
   async function fetchBills() {
     try {
       setLoading(true);
-      const res = await fetch("/api/bills");
+      const res = await fetch(`${API_URL}/api/bills`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setBills(data.data);
@@ -99,7 +103,9 @@ export default function BillsPage() {
 
   async function fetchEmployees() {
     try {
-      const res = await fetch("/api/employees");
+      const res = await fetch(`${API_URL}/api/employees`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         // Filter to only show agents
@@ -144,9 +150,10 @@ export default function BillsPage() {
       const url = editingBill ? `/api/bills/${editingBill._id}` : "/api/bills";
       const method = editingBill ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           type: formData.type,
           name: formData.name,
@@ -181,7 +188,10 @@ export default function BillsPage() {
     if (!confirm("Are you sure you want to delete this transaction?")) return;
 
     try {
-      const res = await fetch(`/api/bills/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_URL}/api/bills/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
       const data = await res.json();
 
       if (data.success) {

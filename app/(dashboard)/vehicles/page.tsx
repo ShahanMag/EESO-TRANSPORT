@@ -27,6 +27,8 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
 interface Vehicle {
   _id: string;
   number: string;
@@ -99,7 +101,9 @@ export default function VehiclesPage() {
         ? `/api/vehicles?search=${encodeURIComponent(search)}`
         : "/api/vehicles";
 
-      const res = await fetch(url);
+      const res = await fetch(`${API_URL}${url}`, {
+        credentials: "include",
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -118,7 +122,9 @@ export default function VehiclesPage() {
 
   async function fetchEmployees() {
     try {
-      const res = await fetch("/api/employees");
+      const res = await fetch(`${API_URL}/api/employees`, {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setEmployees(data.data);
@@ -156,9 +162,10 @@ export default function VehiclesPage() {
         : "/api/vehicles";
       const method = editingVehicle ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           number: formData.number,
           name: formData.name,
@@ -207,8 +214,9 @@ export default function VehiclesPage() {
     if (!deletingVehicleId) return;
 
     try {
-      const res = await fetch(`/api/vehicles/${deletingVehicleId}`, {
+      const res = await fetch(`${API_URL}/api/vehicles/${deletingVehicleId}`, {
         method: "DELETE",
+        credentials: "include",
       });
       const data = await res.json();
 
@@ -231,7 +239,9 @@ export default function VehiclesPage() {
     if (vehicle) {
       // Fetch complete vehicle data from API
       try {
-        const res = await fetch(`/api/vehicles/${vehicle._id}`);
+        const res = await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
+          credentials: "include",
+        });
         const data = await res.json();
 
         if (data.success) {
@@ -443,9 +453,10 @@ export default function VehiclesPage() {
             }
           }
 
-          const res = await fetch("/api/vehicles", {
+          const res = await fetch(`${API_URL}/api/vehicles`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            credentials: "include",
             body: JSON.stringify({
               number: row["Vehicle Number"],
               name: row["Vehicle Name"],
