@@ -23,6 +23,7 @@ import { Plus, Search, Edit, Trash2, X, Upload, Download, UserX, ImagePlus } fro
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import Image from "next/image";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
@@ -53,6 +54,12 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 25,
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -86,13 +93,21 @@ export default function EmployeesPage() {
     if (searchTerm === "") return; // Skip on empty search (handled by initial load)
 
     const delayDebounceFn = setTimeout(() => {
-      fetchEmployees(searchTerm);
+      fetchEmployees(searchTerm, 1); // Reset to page 1 on search
     }, 500); // 500ms delay after user stops typing
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
-  async function fetchEmployees(search = "") {
+  function handlePageChange(page: number) {
+    fetchEmployees(searchTerm, page, pagination.itemsPerPage);
+  }
+
+  function handleItemsPerPageChange(limit: number) {
+    fetchEmployees(searchTerm, 1, limit); // Reset to page 1 when changing items per page
+  }
+
+  async function fetchEmployees(search = "", page = pagination.currentPage, limit = pagination.itemsPerPage) {
     try {
       if (search) {
         setSearching(true);
@@ -100,15 +115,30 @@ export default function EmployeesPage() {
         setLoading(true);
       }
 
-      const url = search
-        ? `/api/employees?search=${encodeURIComponent(search)}`
-        : "/api/employees";
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (search) {
+        params.append("search", search);
+      }
+
+      const url = `/api/employees?${params.toString()}`;
 
       const res = await apiRequest(url);
       const data = await res.json();
 
       if (data.success) {
         setEmployees(data.data);
+        if (data.pagination) {
+          setPagination({
+            currentPage: data.pagination.page,
+            totalPages: data.pagination.totalPages,
+            totalItems: data.pagination.total,
+            itemsPerPage: data.pagination.limit,
+          });
+        }
       } else {
         toast.error("Failed to fetch employees");
       }
@@ -607,23 +637,23 @@ export default function EmployeesPage() {
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-blue-700">Total Employees</p>
-          <p className="text-2xl font-bold text-blue-900">{employees.length}</p>
+          <p className="text-2xl font-bold text-blue-900">{pagination.totalItems}</p>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-green-700">Employees</p>
+          <p className="text-sm font-medium text-green-700">Current Page</p>
           <p className="text-2xl font-bold text-green-900">
-            {employees.filter((e) => e.type === "employee").length}
+            {employees.length}
           </p>
         </div>
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-purple-700">Agents</p>
+          <p className="text-sm font-medium text-purple-700">Page</p>
           <p className="text-2xl font-bold text-purple-900">
-            {employees.filter((e) => e.type === "agent").length}
+            {pagination.currentPage} / {pagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-amber-700">
-            {searchTerm ? "Search Results" : "Total Count"}
+            {searchTerm ? "Search Results" : "Viewing"}
           </p>
           <p className="text-2xl font-bold text-amber-900">{employees.length}</p>
         </div>
@@ -756,6 +786,16 @@ export default function EmployeesPage() {
             {searchTerm ? "No employees found matching your search" : "No employees found"}
           </div>
         )}
+
+        {/* Pagination */}
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          itemsPerPage={pagination.itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

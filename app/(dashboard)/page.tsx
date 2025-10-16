@@ -67,107 +67,40 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      // Fetch all data in parallel for faster loading
-      await Promise.all([fetchStats(), fetchRecentData()]);
-      setLoading(false);
-    }
-    loadData();
+    fetchDashboardData();
   }, []);
 
-  async function fetchStats() {
+  async function fetchDashboardData() {
     try {
-      const [employeesRes, vehiclesRes, paymentsRes, billsRes] =
-        await Promise.all([
-          apiRequest("/api/employees"),
-          apiRequest("/api/vehicles"),
-          apiRequest("/api/payments"),
-          apiRequest("/api/bills"),
-        ]);
+      setLoading(true);
 
-      const [employees, vehicles, payments, bills] = await Promise.all([
-        employeesRes.json(),
-        vehiclesRes.json(),
-        paymentsRes.json(),
-        billsRes.json(),
-      ]);
+      // Single API call for all dashboard data!
+      const res = await apiRequest("/api/reports/dashboard");
+      const result = await res.json();
 
-      setStats({
-        employees: employees.data?.length || 0,
-        vehicles: vehicles.data?.length || 0,
-        payments: payments.data?.length || 0,
-        bills: bills.data?.length || 0,
-      });
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-    }
-  }
+      if (result.success) {
+        const { counts, recent } = result.data;
 
-  async function fetchRecentData() {
-    try {
-      // Fetch all payments and all installments in parallel
-      const [paymentsRes, installmentsRes] = await Promise.all([
-        apiRequest("/api/payments"),
-        apiRequest("/api/installments"),
-      ]);
-
-      const [paymentsData, allInstallmentsData] = await Promise.all([
-        paymentsRes.json(),
-        installmentsRes.json(),
-      ]);
-
-      if (paymentsData.success) {
-        // Group installments by paymentId for faster lookup
-        const installmentsByPaymentId: Record<string, Installment[]> = {};
-        if (allInstallmentsData.success) {
-          allInstallmentsData.data.forEach((inst: Installment) => {
-            if (!installmentsByPaymentId[inst.paymentId]) {
-              installmentsByPaymentId[inst.paymentId] = [];
-            }
-            installmentsByPaymentId[inst.paymentId].push(inst);
-          });
-        }
-
-        // Map payments with their installments
-        const paymentsWithInstallments = paymentsData.data.map((payment: Payment) => {
-          const installments = installmentsByPaymentId[payment._id] || [];
-          const paidAmount = installments.reduce((sum: number, inst: Installment) => sum + inst.amount, 0);
-          return {
-            ...payment,
-            installments,
-            paidAmount,
-            dues: payment.totalAmount - paidAmount,
-          };
+        // Set counts
+        setStats({
+          employees: counts.employees,
+          vehicles: counts.vehicles,
+          payments: counts.payments,
+          bills: counts.bills,
         });
 
-        setAllPayments(paymentsWithInstallments);
+        // Set recent payments (already have paidAmount and dues from backend)
+        setRecentPayments(recent.payments || []);
+        setAllPayments(recent.payments || []);
 
-        // Get last 3 payments for recent display
-        const sortedPayments = paymentsWithInstallments
-          .sort((a: PaymentWithInstallments, b: PaymentWithInstallments) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-          .slice(0, 3);
-        setRecentPayments(sortedPayments);
-      }
-
-      // Fetch all bills
-      const billsRes = await apiRequest("/api/bills");
-      const billsData = await billsRes.json();
-
-      if (billsData.success) {
-        setAllBills(billsData.data);
-
-        const sortedBills = billsData.data
-          .sort((a: Bill, b: Bill) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-          .slice(0, 3);
-        setRecentBills(sortedBills);
+        // Set recent bills
+        setRecentBills(recent.bills || []);
+        setAllBills(recent.bills || []);
       }
     } catch (error) {
-      console.error("Error fetching recent data:", error);
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
     }
   }
 
