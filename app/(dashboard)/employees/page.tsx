@@ -98,7 +98,6 @@ export default function EmployeesPage() {
     fetchEmployees();
     fetchVehicles();
   }, []);
-  console.log(formData);
 
   // Debounced search effect - only for search
   useEffect(() => {
