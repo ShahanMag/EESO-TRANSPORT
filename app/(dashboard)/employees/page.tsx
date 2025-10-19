@@ -19,7 +19,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, X, Upload, Download, UserX, ImagePlus } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  X,
+  Upload,
+  Download,
+  UserX,
+  ImagePlus,
+} from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import Image from "next/image";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -29,7 +39,7 @@ import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
 import { apiRequest } from "@/lib/api-config";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 interface Employee {
   _id: string;
@@ -76,7 +86,8 @@ export default function EmployeesPage() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
-  const [terminatingEmployee, setTerminatingEmployee] = useState<Employee | null>(null);
+  const [terminatingEmployee, setTerminatingEmployee] =
+    useState<Employee | null>(null);
   const [terminateFormData, setTerminateFormData] = useState({
     date: new Date().toISOString().split("T")[0],
     reason: "",
@@ -87,6 +98,7 @@ export default function EmployeesPage() {
     fetchEmployees();
     fetchVehicles();
   }, []);
+  console.log(formData);
 
   // Debounced search effect - only for search
   useEffect(() => {
@@ -107,7 +119,11 @@ export default function EmployeesPage() {
     fetchEmployees(searchTerm, 1, limit); // Reset to page 1 when changing items per page
   }
 
-  async function fetchEmployees(search = "", page = pagination.currentPage, limit = pagination.itemsPerPage) {
+  async function fetchEmployees(
+    search = "",
+    page = pagination.currentPage,
+    limit = pagination.itemsPerPage
+  ) {
     try {
       if (search) {
         setSearching(true);
@@ -217,7 +233,11 @@ export default function EmployeesPage() {
     }
 
     // Phone is optional, but if provided, must match format
-    if (formData.phone && formData.phone.trim() !== "+966" && !/^\+966\d{9}$/.test(formData.phone)) {
+    if (
+      formData.phone &&
+      formData.phone.trim() !== "+966" &&
+      !/^\+966\d{9}$/.test(formData.phone)
+    ) {
       newErrors.phone = "Phone must be in format +966XXXXXXXXX";
     }
 
@@ -283,9 +303,11 @@ export default function EmployeesPage() {
           const vehicle = vehicles.find((v) => v._id === vehicleId);
           if (vehicle) {
             // Extract only the necessary fields to avoid passing populated objects
-            const empIdValue = typeof vehicle.employeeId === 'object' && vehicle.employeeId !== null
-              ? (vehicle.employeeId as any)._id
-              : vehicle.employeeId;
+            const empIdValue =
+              typeof vehicle.employeeId === "object" &&
+              vehicle.employeeId !== null
+                ? (vehicle.employeeId as any)._id
+                : vehicle.employeeId;
 
             await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
               method: "PUT",
@@ -333,9 +355,10 @@ export default function EmployeesPage() {
     try {
       // Get vehicles assigned to this employee
       const assignedVehicles = vehicles.filter((v) => {
-        const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-          ? (v.employeeId as any)._id
-          : v.employeeId;
+        const empId =
+          typeof v.employeeId === "object" && v.employeeId !== null
+            ? (v.employeeId as any)._id
+            : v.employeeId;
         return empId === terminatingEmployee._id;
       });
 
@@ -354,14 +377,19 @@ export default function EmployeesPage() {
       }
 
       // Delete the employee
-      const res = await fetch(`${API_URL}/api/employees/${terminatingEmployee._id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_URL}/api/employees/${terminatingEmployee._id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`);
+        toast.success(
+          `Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`
+        );
         fetchEmployees(searchTerm);
         fetchVehicles();
         setIsTerminateDialogOpen(false);
@@ -401,9 +429,10 @@ export default function EmployeesPage() {
           const assignedVehicles = vehicles
             .filter((v) => {
               // Handle both populated and non-populated employeeId
-              const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-                ? (v.employeeId as any)._id
-                : v.employeeId;
+              const empId =
+                typeof v.employeeId === "object" && v.employeeId !== null
+                  ? (v.employeeId as any)._id
+                  : v.employeeId;
               return empId === fullEmployee._id;
             })
             .map((v) => v._id);
@@ -419,7 +448,13 @@ export default function EmployeesPage() {
       }
     } else {
       setEditingEmployee(null);
-      setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
+      setFormData({
+        name: "",
+        iqamaId: "",
+        phone: "+966",
+        type: "employee",
+        joinDate: "",
+      });
       setSelectedVehicles([]);
       setImageUrls([]);
     }
@@ -430,7 +465,13 @@ export default function EmployeesPage() {
   function handleCloseDialog() {
     setIsDialogOpen(false);
     setEditingEmployee(null);
-    setFormData({ name: "", iqamaId: "", phone: "+966", type: "employee", joinDate: "" });
+    setFormData({
+      name: "",
+      iqamaId: "",
+      phone: "+966",
+      type: "employee",
+      joinDate: "",
+    });
     setSelectedVehicles([]);
     setImageUrls([]);
     setErrors({});
@@ -474,7 +515,6 @@ export default function EmployeesPage() {
     if (!file) return;
 
     setIsUploading(true);
-
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -489,13 +529,21 @@ export default function EmployeesPage() {
         try {
           // Validate required fields (phone is now optional)
           if (!row.Name || !row["Iqama ID (10 digits)"]) {
-            errors.push(`Row with name "${row.Name || "unknown"}" is missing required fields`);
+            errors.push(
+              `Row with name "${
+                row.Name || "unknown"
+              }" is missing required fields`
+            );
             continue;
           }
 
           const iqamaId = row["Iqama ID (10 digits)"].toString();
-          let phone = row["Phone (966XXXXXXXXX)"] ? row["Phone (966XXXXXXXXX)"].toString().trim() : "";
-          const type = (row["Type (employee/agent)"] || "employee").toLowerCase();
+          let phone = row["Phone (966XXXXXXXXX)"]
+            ? row["Phone (966XXXXXXXXX)"].toString().trim()
+            : "";
+          const type = (
+            row["Type (employee/agent)"] || "employee"
+          ).toLowerCase();
 
           // Handle date conversion - Excel can return dates in various formats
           let joinDate = null;
@@ -504,49 +552,69 @@ export default function EmployeesPage() {
 
             // If it's already a Date object (Excel sometimes does this)
             if (rawDate instanceof Date) {
-              joinDate = rawDate.toISOString().split('T')[0];
+              // Use UTC methods to avoid timezone issues
+              const year = rawDate.getUTCFullYear();
+              const month = String(rawDate.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(rawDate.getUTCDate()).padStart(2, "0");
+              joinDate = `${year}-${month}-${day}`;
             }
             // If it's an Excel serial number (number of days since 1900-01-01)
-            else if (typeof rawDate === 'number') {
-              const excelEpoch = new Date(1900, 0, 1);
-              const date = new Date(excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000);
-              joinDate = date.toISOString().split('T')[0];
+            else if (typeof rawDate === "number") {
+              // Excel epoch: January 1, 1900 (but Excel incorrectly treats 1900 as a leap year)
+              const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+              const date = new Date(
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+              );
+              // Use UTC methods to avoid timezone issues
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(date.getUTCDate()).padStart(2, "0");
+              joinDate = `${year}-${month}-${day}`;
             }
             // If it's a string, try to parse it
-            else if (typeof rawDate === 'string') {
+            else if (typeof rawDate === "string") {
               const parsedDate = new Date(rawDate);
               if (!isNaN(parsedDate.getTime())) {
-                joinDate = parsedDate.toISOString().split('T')[0];
+                // Use UTC methods to avoid timezone issues
+                const year = parsedDate.getUTCFullYear();
+                const month = String(parsedDate.getUTCMonth() + 1).padStart(
+                  2,
+                  "0"
+                );
+                const day = String(parsedDate.getUTCDate()).padStart(2, "0");
+                joinDate = `${year}-${month}-${day}`;
               }
             }
           }
 
           // Validate iqama ID
-          if (!/^\d{10}$/.test(iqamaId)) {
-            errors.push(`Row "${row.Name}": Iqama ID must be exactly 10 digits`);
-            continue;
-          }
+          // if (!/^\d{10}$/.test(iqamaId)) {
+          //   errors.push(`Row "${row.Name}": Iqama ID must be exactly 10 digits`);
+          //   continue;
+          // }
 
           // Phone is optional, but if provided, validate and format
           if (phone) {
             // Remove any spaces or dashes
-            phone = phone.replace(/[\s-]/g, '');
+            phone = phone.replace(/[\s-]/g, "");
 
             // If phone starts with 966 but not +966, add the +
             if (/^966\d{9}$/.test(phone)) {
-              phone = '+' + phone;
+              phone = "+" + phone;
             }
 
             // Now validate the final format
-            if (!/^\+966\d{9}$/.test(phone)) {
-              errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
-              continue;
-            }
+            // if (!/^\+966\d{9}$/.test(phone)) {
+            //   errors.push(`Row "${row.Name}": Phone must be in format 966XXXXXXXXX or +966XXXXXXXXX`);
+            //   continue;
+            // }
           }
 
           // Validate type
           if (type !== "employee" && type !== "agent") {
-            errors.push(`Row "${row.Name}": Type must be "employee" or "agent"`);
+            errors.push(
+              `Row "${row.Name}": Type must be "employee" or "agent"`
+            );
             continue;
           }
 
@@ -569,7 +637,9 @@ export default function EmployeesPage() {
 
       // If there are validation errors, show them
       if (errors.length > 0) {
-        toast.error(`${errors.length} row(s) failed validation. Check console for details.`);
+        toast.error(
+          `${errors.length} row(s) failed validation. Check console for details.`
+        );
         console.error("Bulk upload validation errors:", errors);
       }
 
@@ -591,17 +661,19 @@ export default function EmployeesPage() {
       const result = await res.json();
 
       if (result.success) {
-        toast.success(`Successfully uploaded ${result.successCount} employee(s)`);
-        if (result.errors && result.errors.length > 0) {
-          toast.warning(`${result.errors.length} employee(s) failed. Check console for details.`);
-          console.error("Bulk upload errors:", result.errors);
+        toast.success(result.message || `Successfully uploaded employee(s)`);
+        if (result.data?.errors && result.data.errors.length > 0) {
+          toast.warning(
+            `${result.data.errors.length} employee(s) failed. Check console for details.`
+          );
+          console.error("Bulk upload errors:", result.data.errors);
         }
         fetchEmployees(searchTerm);
         setIsBulkUploadDialogOpen(false);
       } else {
         toast.error(result.error || "Failed to upload employees");
-        if (result.errors) {
-          console.error("Bulk upload errors:", result.errors);
+        if (result.data?.errors) {
+          console.error("Bulk upload errors:", result.data.errors);
         }
       }
     } catch (error) {
@@ -623,7 +695,10 @@ export default function EmployeesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Employees</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadDialogOpen(true)}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Bulk Upload
           </Button>
@@ -637,14 +712,16 @@ export default function EmployeesPage() {
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-blue-700">Total Employees</p>
-          <p className="text-2xl font-bold text-blue-900">{pagination.totalItems}</p>
+          <p className="text-2xl font-bold text-blue-900">
+            {pagination.totalItems}
+          </p>
         </div>
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
+        {/* <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-green-700">Current Page</p>
           <p className="text-2xl font-bold text-green-900">
             {employees.length}
           </p>
-        </div>
+        </div> */}
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-purple-700">Page</p>
           <p className="text-2xl font-bold text-purple-900">
@@ -655,7 +732,9 @@ export default function EmployeesPage() {
           <p className="text-sm font-medium text-amber-700">
             {searchTerm ? "Search Results" : "Viewing"}
           </p>
-          <p className="text-2xl font-bold text-amber-900">{employees.length}</p>
+          <p className="text-2xl font-bold text-amber-900">
+            {employees.length}
+          </p>
         </div>
       </div>
 
@@ -676,15 +755,21 @@ export default function EmployeesPage() {
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
-            Searching for: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{searchTerm}</span>
+            Searching for:{" "}
+            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+              {searchTerm}
+            </span>
           </div>
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white rounded-lg shadow overflow-y-scroll h-[450px]">
+        <table className="min-w-full divide-y divide-gray-200 ">
+          <thead className="bg-gray-50 sticky top-0">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                SI NO
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Image
               </th>
@@ -709,13 +794,14 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {employees.map((employee) => {
+            {employees.map((employee, i) => {
               // Get vehicles assigned to this employee
               const assignedVehicles = vehicles
                 .filter((v) => {
-                  const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-                    ? (v.employeeId as any)._id
-                    : v.employeeId;
+                  const empId =
+                    typeof v.employeeId === "object" && v.employeeId !== null
+                      ? (v.employeeId as any)._id
+                      : v.employeeId;
                   return empId === employee._id;
                 })
                 .map((v) => v.number)
@@ -723,6 +809,7 @@ export default function EmployeesPage() {
 
               return (
                 <tr key={employee._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">{i + 1}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {employee.imageUrls && employee.imageUrls.length > 0 ? (
                       <Image
@@ -750,7 +837,11 @@ export default function EmployeesPage() {
                     {employee.phone || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Badge variant={employee.type === "agent" ? "default" : "secondary"}>
+                    <Badge
+                      variant={
+                        employee.type === "agent" ? "default" : "secondary"
+                      }
+                    >
                       {employee.type === "agent" ? "Agent" : "Employee"}
                     </Badge>
                   </td>
@@ -783,21 +874,22 @@ export default function EmployeesPage() {
         </table>
         {employees.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            {searchTerm ? "No employees found matching your search" : "No employees found"}
+            {searchTerm
+              ? "No employees found matching your search"
+              : "No employees found"}
           </div>
         )}
 
         {/* Pagination */}
-        <Pagination
-          currentPage={pagination.currentPage}
-          totalPages={pagination.totalPages}
-          totalItems={pagination.totalItems}
-          itemsPerPage={pagination.itemsPerPage}
-          onPageChange={handlePageChange}
-          onItemsPerPageChange={handleItemsPerPageChange}
-        />
       </div>
-
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        itemsPerPage={pagination.itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -853,7 +945,10 @@ export default function EmployeesPage() {
                 <Select
                   value={formData.type}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, type: value as "employee" | "agent" })
+                    setFormData({
+                      ...formData,
+                      type: value as "employee" | "agent",
+                    })
                   }
                 >
                   <SelectTrigger>
@@ -880,20 +975,30 @@ export default function EmployeesPage() {
                 <Label>Assign Vehicles (Optional)</Label>
                 <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
                   {vehicles.length === 0 ? (
-                    <p className="text-sm text-gray-500">No vehicles available</p>
+                    <p className="text-sm text-gray-500">
+                      No vehicles available
+                    </p>
                   ) : (
                     vehicles.map((vehicle) => (
-                      <div key={vehicle._id} className="flex items-center space-x-2">
+                      <div
+                        key={vehicle._id}
+                        className="flex items-center space-x-2"
+                      >
                         <input
                           type="checkbox"
                           id={`vehicle-${vehicle._id}`}
                           checked={selectedVehicles.includes(vehicle._id)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedVehicles([...selectedVehicles, vehicle._id]);
+                              setSelectedVehicles([
+                                ...selectedVehicles,
+                                vehicle._id,
+                              ]);
                             } else {
                               setSelectedVehicles(
-                                selectedVehicles.filter((id) => id !== vehicle._id)
+                                selectedVehicles.filter(
+                                  (id) => id !== vehicle._id
+                                )
                               );
                             }
                           }}
@@ -906,15 +1011,20 @@ export default function EmployeesPage() {
                           {vehicle.number} - {vehicle.name}
                           {(() => {
                             // Handle both populated and non-populated employeeId
-                            const empId = typeof vehicle.employeeId === 'object' && vehicle.employeeId !== null
-                              ? (vehicle.employeeId as any)._id
-                              : vehicle.employeeId;
+                            const empId =
+                              typeof vehicle.employeeId === "object" &&
+                              vehicle.employeeId !== null
+                                ? (vehicle.employeeId as any)._id
+                                : vehicle.employeeId;
 
                             // Show "Already assigned" only if vehicle is assigned to a different employee
-                            return empId && empId !== editingEmployee?._id && (
-                              <span className="text-xs text-red-500 ml-2">
-                                (Already assigned)
-                              </span>
+                            return (
+                              empId &&
+                              empId !== editingEmployee?._id && (
+                                <span className="text-xs text-red-500 ml-2">
+                                  (Already assigned)
+                                </span>
+                              )
                             );
                           })()}
                         </label>
@@ -985,7 +1095,11 @@ export default function EmployeesPage() {
               )}
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+              >
                 Cancel
               </Button>
               <Button type="submit">
@@ -997,17 +1111,24 @@ export default function EmployeesPage() {
       </Dialog>
 
       {/* Bulk Upload Dialog */}
-      <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
+      <Dialog
+        open={isBulkUploadDialogOpen}
+        onOpenChange={setIsBulkUploadDialogOpen}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Bulk Upload Employees</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">
+                Instructions:
+              </h3>
               <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
                 <li>Download the Excel template below</li>
-                <li>Fill in employee details following the format in the template</li>
+                <li>
+                  Fill in employee details following the format in the template
+                </li>
                 <li>Make sure all required fields are filled correctly</li>
                 <li>Upload the completed Excel file</li>
               </ol>
@@ -1049,12 +1170,28 @@ export default function EmployeesPage() {
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
               <div className="text-xs text-gray-600 space-y-1">
-                <p><strong>Name:</strong> Employee full name</p>
-                <p><strong>Iqama ID:</strong> Exactly 10 digits (e.g., 1234567890)</p>
-                <p><strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX (e.g., 966501234567) - Optional</p>
-                <p><strong>Type:</strong> Either "employee" or "agent"</p>
-                <p><strong>Join Date:</strong> Format YYYY-MM-DD (e.g., 2024-01-15) - Optional</p>
-                <p><strong>Vehicle Number:</strong> Vehicle number to assign (e.g., ABC-1234) - Optional</p>
+                <p>
+                  <strong>Name:</strong> Employee full name
+                </p>
+                <p>
+                  <strong>Iqama ID:</strong> Exactly 10 digits (e.g.,
+                  1234567890)
+                </p>
+                <p>
+                  <strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX
+                  (e.g., 966501234567) - Optional
+                </p>
+                <p>
+                  <strong>Type:</strong> Either "employee" or "agent"
+                </p>
+                <p>
+                  <strong>Join Date:</strong> Format YYYY-MM-DD (e.g.,
+                  2024-01-15) - Optional
+                </p>
+                <p>
+                  <strong>Vehicle Number:</strong> Vehicle number to assign
+                  (e.g., ABC-1234) - Optional
+                </p>
               </div>
             </div>
           </div>
@@ -1072,7 +1209,10 @@ export default function EmployeesPage() {
       </Dialog>
 
       {/* Terminate Employee Dialog */}
-      <Dialog open={isTerminateDialogOpen} onOpenChange={setIsTerminateDialogOpen}>
+      <Dialog
+        open={isTerminateDialogOpen}
+        onOpenChange={setIsTerminateDialogOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Terminate Employee</DialogTitle>
@@ -1086,18 +1226,26 @@ export default function EmployeesPage() {
                     <strong>{terminatingEmployee.name}</strong>.
                   </p>
                   {vehicles.filter((v) => {
-                    const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-                      ? (v.employeeId as any)._id
-                      : v.employeeId;
+                    const empId =
+                      typeof v.employeeId === "object" && v.employeeId !== null
+                        ? (v.employeeId as any)._id
+                        : v.employeeId;
                     return empId === terminatingEmployee._id;
                   }).length > 0 && (
                     <p className="text-sm text-yellow-800 mt-2">
-                      <strong>{vehicles.filter((v) => {
-                        const empId = typeof v.employeeId === 'object' && v.employeeId !== null
-                          ? (v.employeeId as any)._id
-                          : v.employeeId;
-                        return empId === terminatingEmployee._id;
-                      }).length}</strong> assigned vehicle(s) will be unassigned.
+                      <strong>
+                        {
+                          vehicles.filter((v) => {
+                            const empId =
+                              typeof v.employeeId === "object" &&
+                              v.employeeId !== null
+                                ? (v.employeeId as any)._id
+                                : v.employeeId;
+                            return empId === terminatingEmployee._id;
+                          }).length
+                        }
+                      </strong>{" "}
+                      assigned vehicle(s) will be unassigned.
                     </p>
                   )}
                 </div>
@@ -1111,7 +1259,10 @@ export default function EmployeesPage() {
                     type="date"
                     value={terminateFormData.date}
                     onChange={(e) =>
-                      setTerminateFormData({ ...terminateFormData, date: e.target.value })
+                      setTerminateFormData({
+                        ...terminateFormData,
+                        date: e.target.value,
+                      })
                     }
                     required
                   />
@@ -1119,13 +1270,17 @@ export default function EmployeesPage() {
 
                 <div>
                   <Label htmlFor="terminationReason">
-                    Reason for Termination <span className="text-red-500">*</span>
+                    Reason for Termination{" "}
+                    <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="terminationReason"
                     value={terminateFormData.reason}
                     onChange={(e) =>
-                      setTerminateFormData({ ...terminateFormData, reason: e.target.value })
+                      setTerminateFormData({
+                        ...terminateFormData,
+                        reason: e.target.value,
+                      })
                     }
                     placeholder="Enter reason for termination"
                     required
