@@ -22,12 +22,16 @@ import {
 import { Plus, Search, Edit, Trash2, Upload, Download } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
+import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 interface Vehicle {
   _id: string;
@@ -56,9 +60,17 @@ export default function VehiclesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 25,
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
+  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(
+    null
+  );
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({
     number: "",
@@ -87,13 +99,25 @@ export default function VehiclesPage() {
     if (searchTerm === "") return; // Skip on empty search (handled by initial load)
 
     const delayDebounceFn = setTimeout(() => {
-      fetchVehicles(searchTerm);
+      fetchVehicles(searchTerm, 1); // Reset to page 1 on search
     }, 500); // 500ms delay after user stops typing
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
-  async function fetchVehicles(search = "") {
+  function handlePageChange(page: number) {
+    fetchVehicles(searchTerm, page, pagination.itemsPerPage);
+  }
+
+  function handleItemsPerPageChange(limit: number) {
+    fetchVehicles(searchTerm, 1, limit); // Reset to page 1 when changing items per page
+  }
+
+  async function fetchVehicles(
+    search = "",
+    page = pagination.currentPage,
+    limit = pagination.itemsPerPage
+  ) {
     try {
       if (search) {
         setSearching(true);
@@ -101,9 +125,16 @@ export default function VehiclesPage() {
         setLoading(true);
       }
 
-      const url = search
-        ? `/api/vehicles?search=${encodeURIComponent(search)}`
-        : "/api/vehicles";
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (search) {
+        params.append("search", search);
+      }
+
+      const url = `/api/vehicles?${params.toString()}`;
 
       const res = await fetch(`${API_URL}${url}`, {
         credentials: "include",
@@ -112,6 +143,14 @@ export default function VehiclesPage() {
 
       if (data.success) {
         setVehicles(data.data);
+        if (data.pagination) {
+          setPagination({
+            currentPage: data.pagination.page,
+            totalPages: data.pagination.totalPages,
+            totalItems: data.pagination.total,
+            itemsPerPage: data.pagination.limit,
+          });
+        }
       } else {
         toast.error("Failed to fetch vehicles");
       }
@@ -179,12 +218,17 @@ export default function VehiclesPage() {
           vehicleAmount: formData.vehicleAmount
             ? parseFloat(formData.vehicleAmount)
             : undefined,
-          startDate: formData.startDate && formData.startDate.trim() !== "" ? new Date(formData.startDate) : undefined,
-          contractExpiry: formData.contractExpiry && formData.contractExpiry.trim() !== ""
-            ? new Date(formData.contractExpiry)
-            : undefined,
+          startDate:
+            formData.startDate && formData.startDate.trim() !== ""
+              ? new Date(formData.startDate)
+              : undefined,
+          contractExpiry:
+            formData.contractExpiry && formData.contractExpiry.trim() !== ""
+              ? new Date(formData.contractExpiry)
+              : undefined,
           description: formData.description || undefined,
-          employeeId: formData.employeeId === "unassigned" ? null : formData.employeeId,
+          employeeId:
+            formData.employeeId === "unassigned" ? null : formData.employeeId,
         }),
       });
 
@@ -265,7 +309,10 @@ export default function VehiclesPage() {
               ? new Date(fullVehicle.contractExpiry).toISOString().split("T")[0]
               : "",
             description: fullVehicle.description || "",
-            employeeId: fullVehicle.employeeId?._id || fullVehicle.employeeId || "unassigned",
+            employeeId:
+              fullVehicle.employeeId?._id ||
+              fullVehicle.employeeId ||
+              "unassigned",
           });
         } else {
           toast.error("Failed to fetch vehicle details");
@@ -349,7 +396,11 @@ export default function VehiclesPage() {
       { header: "Model", key: "vehicleModel", width: 15 },
       { header: "Vehicle Amount (SAR)", key: "vehicleAmount", width: 20 },
       { header: "Start Date (YYYY-MM-DD)", key: "startDate", width: 20 },
-      { header: "Contract Expiry (YYYY-MM-DD)", key: "contractExpiry", width: 25 },
+      {
+        header: "Contract Expiry (YYYY-MM-DD)",
+        key: "contractExpiry",
+        width: 25,
+      },
       { header: "Description", key: "description", width: 35 },
       { header: "Employee Iqama ID (Optional)", key: "employeeId", width: 25 },
     ];
@@ -368,16 +419,20 @@ export default function VehiclesPage() {
     }
 
     // If it's a string
-    if (typeof dateValue === 'string') {
+    if (typeof dateValue === "string") {
       const trimmed = dateValue.trim();
-      if (trimmed === '') return null;
+      if (trimmed === "") return null;
 
       // Try to parse MM/DD/YYYY or M/D/YYYY format (Excel default)
       const slashFormat = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
       const slashMatch = trimmed.match(slashFormat);
       if (slashMatch) {
         const [, month, day, year] = slashMatch;
-        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        const date = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day)
+        );
         return isNaN(date.getTime()) ? null : date;
       }
 
@@ -395,7 +450,7 @@ export default function VehiclesPage() {
     }
 
     // If it's a number (Excel serial date)
-    if (typeof dateValue === 'number') {
+    if (typeof dateValue === "number") {
       // Excel dates are stored as days since 1900-01-01
       const excelEpoch = new Date(1900, 0, 1);
       const date = new Date(excelEpoch.getTime() + (dateValue - 2) * 86400000);
@@ -423,12 +478,85 @@ export default function VehiclesPage() {
       // Prepare all vehicles without frontend validation
       for (const row of jsonData as any[]) {
         try {
-          const type = (row["Type (private/public)"] || "private").toLowerCase();
+          const type = (
+            row["Type (private/public)"] || "private"
+          ).toLowerCase();
           const vehicleAmount = row["Vehicle Amount (SAR)"];
 
-          // Parse dates using the helper function
-          const startDate = parseExcelDate(row["Start Date (YYYY-MM-DD)"]);
-          const contractExpiry = parseExcelDate(row["Contract Expiry (YYYY-MM-DD)"]);
+          // Handle date conversion - Excel can return dates in various formats
+          let startDate = null;
+          if (row["Start Date (YYYY-MM-DD)"]) {
+            const rawDate = row["Start Date (YYYY-MM-DD)"];
+
+            // If it's already a Date object (Excel sometimes does this)
+            if (rawDate instanceof Date) {
+              const year = rawDate.getUTCFullYear();
+              const month = String(rawDate.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(rawDate.getUTCDate()).padStart(2, "0");
+              startDate = `${year}-${month}-${day}`;
+            }
+            // If it's an Excel serial number (number of days since 1900-01-01)
+            else if (typeof rawDate === "number") {
+              const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+              const date = new Date(
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+              );
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(date.getUTCDate()).padStart(2, "0");
+              startDate = `${year}-${month}-${day}`;
+            }
+            // If it's a string, try to parse it
+            else if (typeof rawDate === "string") {
+              const parsedDate = new Date(rawDate);
+              if (!isNaN(parsedDate.getTime())) {
+                const year = parsedDate.getUTCFullYear();
+                const month = String(parsedDate.getUTCMonth() + 1).padStart(
+                  2,
+                  "0"
+                );
+                const day = String(parsedDate.getUTCDate()).padStart(2, "0");
+                startDate = `${year}-${month}-${day}`;
+              }
+            }
+          }
+
+          let contractExpiry = null;
+          if (row["Contract Expiry (YYYY-MM-DD)"]) {
+            const rawDate = row["Contract Expiry (YYYY-MM-DD)"];
+
+            // If it's already a Date object (Excel sometimes does this)
+            if (rawDate instanceof Date) {
+              const year = rawDate.getUTCFullYear();
+              const month = String(rawDate.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(rawDate.getUTCDate()).padStart(2, "0");
+              contractExpiry = `${year}-${month}-${day}`;
+            }
+            // If it's an Excel serial number (number of days since 1900-01-01)
+            else if (typeof rawDate === "number") {
+              const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+              const date = new Date(
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+              );
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+              const day = String(date.getUTCDate()).padStart(2, "0");
+              contractExpiry = `${year}-${month}-${day}`;
+            }
+            // If it's a string, try to parse it
+            else if (typeof rawDate === "string") {
+              const parsedDate = new Date(rawDate);
+              if (!isNaN(parsedDate.getTime())) {
+                const year = parsedDate.getUTCFullYear();
+                const month = String(parsedDate.getUTCMonth() + 1).padStart(
+                  2,
+                  "0"
+                );
+                const day = String(parsedDate.getUTCDate()).padStart(2, "0");
+                contractExpiry = `${year}-${month}-${day}`;
+              }
+            }
+          }
 
           const employeeIqamaId = row["Employee Iqama ID (Optional)"];
 
@@ -440,11 +568,13 @@ export default function VehiclesPage() {
           };
 
           // Add optional fields only if they have values
-          if (row["Serial Number"]) vehicleData.serialNumber = row["Serial Number"];
+          if (row["Serial Number"])
+            vehicleData.serialNumber = row["Serial Number"];
           if (row["Model"]) vehicleData.vehicleModel = row["Model"];
-          if (vehicleAmount) vehicleData.vehicleAmount = parseFloat(vehicleAmount.toString());
-          if (startDate) vehicleData.startDate = startDate.toISOString().split('T')[0];
-          if (contractExpiry) vehicleData.contractExpiry = contractExpiry.toISOString().split('T')[0];
+          if (vehicleAmount)
+            vehicleData.vehicleAmount = parseFloat(vehicleAmount.toString());
+          if (startDate) vehicleData.startDate = startDate;
+          if (contractExpiry) vehicleData.contractExpiry = contractExpiry;
           if (row["Description"]) vehicleData.description = row["Description"];
           if (employeeIqamaId) vehicleData.iqamaId = employeeIqamaId;
 
@@ -476,17 +606,22 @@ export default function VehiclesPage() {
       const result = await res.json();
 
       if (result.success) {
-        toast.success(`Successfully uploaded ${result.successCount} vehicle(s)`);
-        if (result.errors && result.errors.length > 0) {
-          toast.warning(`${result.errors.length} vehicle(s) failed. Check console for details.`);
-          console.error("Backend errors:", result.errors);
+        toast.success(
+          result.message ||
+            `Successfully uploaded ${result.successCount} vehicle(s)`
+        );
+        if (result.data?.errors && result.data.errors.length > 0) {
+          toast.warning(
+            `${result.data.errors.length} vehicle(s) failed. Check console for details.`
+          );
+          console.error("Backend errors:", result.data.errors);
         }
         fetchVehicles(searchTerm);
         setIsBulkUploadDialogOpen(false);
       } else {
         toast.error(result.error || "Failed to upload vehicles");
-        if (result.errors && result.errors.length > 0) {
-          console.error("Backend errors:", result.errors);
+        if (result.data?.errors && result.data.errors.length > 0) {
+          console.error("Backend errors:", result.data.errors);
         }
       }
     } catch (error) {
@@ -508,7 +643,10 @@ export default function VehiclesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Vehicles</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsBulkUploadDialogOpen(true)}>
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadDialogOpen(true)}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Bulk Upload
           </Button>
@@ -522,25 +660,31 @@ export default function VehiclesPage() {
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-purple-700">Total Vehicles</p>
-          <p className="text-2xl font-bold text-purple-900">{vehicles.length}</p>
+          <p className="text-2xl font-bold text-purple-900">
+            {pagination.totalItems}
+          </p>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-green-700">Assigned</p>
+          <p className="text-sm font-medium text-green-700">Page</p>
           <p className="text-2xl font-bold text-green-900">
-            {vehicles.filter((v) => v.employeeId).length}
+            {pagination.currentPage} / {pagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-amber-700">Unassigned</p>
+          <p className="text-sm font-medium text-amber-700">
+            {searchTerm ? "Search Results" : "Viewing"}
+          </p>
           <p className="text-2xl font-bold text-amber-900">
-            {vehicles.filter((v) => !v.employeeId).length}
+            {vehicles.length}
           </p>
         </div>
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-blue-700">
-            {searchTerm ? "Search Results" : "Total Count"}
+            Assigned / Unassigned
           </p>
-          <p className="text-2xl font-bold text-blue-900">{vehicles.length}</p>
+          <p className="text-2xl font-bold text-blue-900">
+            {vehicles.filter((v) => v.employeeId).length} / {vehicles.filter((v) => !v.employeeId).length}
+          </p>
         </div>
       </div>
 
@@ -562,13 +706,19 @@ export default function VehiclesPage() {
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
-            Searching for: <span className="font-mono bg-gray-100 px-2 py-1 rounded" dir="auto">{searchTerm}</span>
+            Searching for:{" "}
+            <span
+              className="font-mono bg-gray-100 px-2 py-1 rounded"
+              dir="auto"
+            >
+              {searchTerm}
+            </span>
           </div>
         )}
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto">
+      <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto h-[450px]">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -612,37 +762,41 @@ export default function VehiclesPage() {
                   {vehicle.name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    vehicle.type === "private"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-green-100 text-green-800"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      vehicle.type === "private"
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
                     {vehicle.type === "private" ? "Private" : "Public"}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.vehicleAmount
-                    ? new Intl.NumberFormat('en-SA', {
-                        style: 'currency',
-                        currency: 'SAR',
-                        minimumFractionDigits: 0
+                    ? new Intl.NumberFormat("en-SA", {
+                        style: "currency",
+                        currency: "SAR",
+                        minimumFractionDigits: 0,
                       }).format(vehicle.vehicleAmount)
                     : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {vehicle.startDate && new Date(vehicle.startDate).getFullYear() !== 1970
-                    ? new Date(vehicle.startDate).toLocaleDateString('en-GB')
+                  {vehicle.startDate &&
+                  new Date(vehicle.startDate).getFullYear() !== 1970
+                    ? new Date(vehicle.startDate).toLocaleDateString("en-GB")
                     : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {vehicle.contractExpiry && new Date(vehicle.contractExpiry).getFullYear() !== 1970
-                    ? new Date(vehicle.contractExpiry).toLocaleDateString('en-GB')
+                  {vehicle.contractExpiry &&
+                  new Date(vehicle.contractExpiry).getFullYear() !== 1970
+                    ? new Date(vehicle.contractExpiry).toLocaleDateString(
+                        "en-GB"
+                      )
                     : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {vehicle.employeeId
-                    ? vehicle.employeeId.name
-                    : "Unassigned"}
+                  {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <Button
@@ -672,7 +826,9 @@ export default function VehiclesPage() {
         </table>
         {vehicles.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            {searchTerm ? "No vehicles found matching your search" : "No vehicles found"}
+            {searchTerm
+              ? "No vehicles found matching your search"
+              : "No vehicles found"}
           </div>
         )}
       </div>
@@ -681,7 +837,9 @@ export default function VehiclesPage() {
       <div className="md:hidden space-y-4">
         {vehicles.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            {searchTerm ? "No vehicles found matching your search" : "No vehicles found"}
+            {searchTerm
+              ? "No vehicles found matching your search"
+              : "No vehicles found"}
           </div>
         ) : (
           vehicles.map((vehicle) => (
@@ -692,36 +850,55 @@ export default function VehiclesPage() {
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{vehicle.number}</h3>
+                  <h3 className="font-semibold text-gray-900">
+                    {vehicle.number}
+                  </h3>
                   <p className="text-sm text-gray-600">{vehicle.name}</p>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      vehicle.type === "private"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-green-100 text-green-800"
-                    }`}>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        vehicle.type === "private"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
+                    >
                       {vehicle.type === "private" ? "Private" : "Public"}
                     </span>
                   </div>
                   {vehicle.vehicleAmount && (
                     <p className="text-sm text-gray-700 font-medium mt-2">
-                      {new Intl.NumberFormat('en-SA', {
-                        style: 'currency',
-                        currency: 'SAR',
-                        minimumFractionDigits: 0
+                      {new Intl.NumberFormat("en-SA", {
+                        style: "currency",
+                        currency: "SAR",
+                        minimumFractionDigits: 0,
                       }).format(vehicle.vehicleAmount)}
                     </p>
                   )}
                   <div className="text-xs text-gray-500 mt-2 space-y-1">
-                    {vehicle.startDate && new Date(vehicle.startDate).getFullYear() !== 1970 && (
-                      <p>Start: {new Date(vehicle.startDate).toLocaleDateString('en-GB')}</p>
-                    )}
-                    {vehicle.contractExpiry && new Date(vehicle.contractExpiry).getFullYear() !== 1970 && (
-                      <p>Expiry: {new Date(vehicle.contractExpiry).toLocaleDateString('en-GB')}</p>
-                    )}
+                    {vehicle.startDate &&
+                      new Date(vehicle.startDate).getFullYear() !== 1970 && (
+                        <p>
+                          Start:{" "}
+                          {new Date(vehicle.startDate).toLocaleDateString(
+                            "en-GB"
+                          )}
+                        </p>
+                      )}
+                    {vehicle.contractExpiry &&
+                      new Date(vehicle.contractExpiry).getFullYear() !==
+                        1970 && (
+                        <p>
+                          Expiry:{" "}
+                          {new Date(vehicle.contractExpiry).toLocaleDateString(
+                            "en-GB"
+                          )}
+                        </p>
+                      )}
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
+                    {vehicle.employeeId
+                      ? vehicle.employeeId.name
+                      : "Unassigned"}
                   </p>
                 </div>
                 <div className="flex gap-1">
@@ -751,6 +928,16 @@ export default function VehiclesPage() {
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        itemsPerPage={pagination.itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -902,11 +1089,17 @@ export default function VehiclesPage() {
                 />
               </div>
               {errors.submit && (
-                <p className="text-sm text-red-500 md:col-span-2">{errors.submit}</p>
+                <p className="text-sm text-red-500 md:col-span-2">
+                  {errors.submit}
+                </p>
               )}
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+              >
                 Cancel
               </Button>
               <Button type="submit">
@@ -918,17 +1111,24 @@ export default function VehiclesPage() {
       </Dialog>
 
       {/* Bulk Upload Dialog */}
-      <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
+      <Dialog
+        open={isBulkUploadDialogOpen}
+        onOpenChange={setIsBulkUploadDialogOpen}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Bulk Upload Vehicles</DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">Instructions:</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">
+                Instructions:
+              </h3>
               <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
                 <li>Download the Excel template below</li>
-                <li>Fill in vehicle details following the format in the template</li>
+                <li>
+                  Fill in vehicle details following the format in the template
+                </li>
                 <li>Make sure all required fields are filled correctly</li>
                 <li>Upload the completed Excel file</li>
               </ol>
@@ -970,16 +1170,45 @@ export default function VehiclesPage() {
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
               <div className="text-xs text-gray-600 space-y-1">
-                <p><strong>Vehicle Number:</strong> Required - Unique identifier (e.g., ABC-1234)</p>
-                <p><strong>Vehicle Name:</strong> Required - Vehicle model/name (e.g., Toyota Camry)</p>
-                <p><strong>Serial Number:</strong> Optional - Vehicle serial number</p>
-                <p><strong>Type:</strong> Either "private" or "public" (default: private)</p>
-                <p><strong>Model:</strong> Optional - Year or model info (e.g., 2023)</p>
-                <p><strong>Vehicle Amount:</strong> Optional - Price in SAR (e.g., 150000)</p>
-                <p><strong>Start Date:</strong> Optional - YYYY-MM-DD or MM/DD/YYYY (e.g., 2024-01-15 or 1/15/2024)</p>
-                <p><strong>Contract Expiry:</strong> Optional - YYYY-MM-DD or MM/DD/YYYY (e.g., 2025-01-15 or 1/15/2025)</p>
-                <p><strong>Description:</strong> Optional - Additional notes</p>
-                <p><strong>Employee Iqama ID:</strong> Optional - Assign to employee by Iqama ID</p>
+                <p>
+                  <strong>Vehicle Number:</strong> Required - Unique identifier
+                  (e.g., ABC-1234)
+                </p>
+                <p>
+                  <strong>Vehicle Name:</strong> Required - Vehicle model/name
+                  (e.g., Toyota Camry)
+                </p>
+                <p>
+                  <strong>Serial Number:</strong> Optional - Vehicle serial
+                  number
+                </p>
+                <p>
+                  <strong>Type:</strong> Either "private" or "public" (default:
+                  private)
+                </p>
+                <p>
+                  <strong>Model:</strong> Optional - Year or model info (e.g.,
+                  2023)
+                </p>
+                <p>
+                  <strong>Vehicle Amount:</strong> Optional - Price in SAR
+                  (e.g., 150000)
+                </p>
+                <p>
+                  <strong>Start Date:</strong> Optional - YYYY-MM-DD or
+                  MM/DD/YYYY (e.g., 2024-01-15 or 1/15/2024)
+                </p>
+                <p>
+                  <strong>Contract Expiry:</strong> Optional - YYYY-MM-DD or
+                  MM/DD/YYYY (e.g., 2025-01-15 or 1/15/2025)
+                </p>
+                <p>
+                  <strong>Description:</strong> Optional - Additional notes
+                </p>
+                <p>
+                  <strong>Employee Iqama ID:</strong> Optional - Assign to
+                  employee by Iqama ID
+                </p>
               </div>
             </div>
           </div>

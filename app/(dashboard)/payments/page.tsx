@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 
@@ -70,6 +71,12 @@ export default function PaymentsPage() {
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 25,
+  });
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -146,11 +153,27 @@ export default function PaymentsPage() {
     setFilteredGroups(filtered);
   }, [payments, searchTerm]);
 
-  async function fetchPayments() {
+  function handlePageChange(page: number) {
+    fetchPayments(page, pagination.itemsPerPage);
+  }
+
+  function handleItemsPerPageChange(limit: number) {
+    fetchPayments(1, limit); // Reset to page 1 when changing items per page
+  }
+
+  async function fetchPayments(
+    page = pagination.currentPage,
+    limit = pagination.itemsPerPage
+  ) {
     try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
-        fetch(`${API_URL}/api/payments`, {
+        fetch(`${API_URL}/api/payments?${params.toString()}`, {
           credentials: "include",
         }),
         fetch(`${API_URL}/api/installments`, {
@@ -164,6 +187,16 @@ export default function PaymentsPage() {
       ]);
 
       if (paymentsData.success) {
+        // Update pagination state
+        if (paymentsData.pagination) {
+          setPagination({
+            currentPage: paymentsData.pagination.page,
+            totalPages: paymentsData.pagination.totalPages,
+            totalItems: paymentsData.pagination.total,
+            itemsPerPage: paymentsData.pagination.limit,
+          });
+        }
+
         // Group installments by paymentId for faster lookup
         const installmentsByPaymentId: Record<string, Installment[]> = {};
         if (allInstallmentsData.success) {
@@ -477,7 +510,7 @@ export default function PaymentsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
@@ -514,6 +547,21 @@ export default function PaymentsPage() {
             </div>
           </CardContent>
         </Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700">
+              Total Payments
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-900">
+              {pagination.totalItems}
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              Page {pagination.currentPage} / {pagination.totalPages}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="mb-4">
@@ -528,7 +576,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-y-scroll h-[450px] pr-2">
         {filteredGroups.map((group) => {
           const isVehicleExpanded = expandedVehicles.has(group.vehicle._id);
           return (
@@ -745,6 +793,16 @@ export default function PaymentsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        totalItems={pagination.totalItems}
+        itemsPerPage={pagination.itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
 
       {/* Payment Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
