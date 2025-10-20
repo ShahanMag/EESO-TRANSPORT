@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,20 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-utils";
 import { Download } from "lucide-react";
+import { apiRequest } from "@/lib/api-config";
+import { toast } from "sonner";
+
+interface Vehicle {
+  _id: string;
+  number: string;
+  name: string;
+}
+
+interface Employee {
+  _id: string;
+  name: string;
+  iqamaId: string;
+}
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState("employees");
@@ -29,6 +43,38 @@ export default function ReportsPage() {
   });
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  useEffect(() => {
+    fetchVehicles();
+    fetchEmployees();
+  }, []);
+
+  async function fetchVehicles() {
+    try {
+      const res = await apiRequest("/api/vehicles?limit=1000");
+      const data = await res.json();
+      if (data.success) {
+        setVehicles(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+    }
+  }
+
+  async function fetchEmployees() {
+    try {
+      // Fetch only agents for the bills filter
+      const res = await apiRequest("/api/employees?limit=1000&type=agent");
+      const data = await res.json();
+      if (data.success) {
+        setEmployees(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  }
 
   async function fetchReport() {
     setLoading(true);
@@ -57,14 +103,18 @@ export default function ReportsPage() {
           break;
       }
 
-      const res = await fetch(url);
+      const res = await apiRequest(url);
       const data = await res.json();
 
       if (data.success) {
         setReportData(data.data);
+        toast.success("Report generated successfully");
+      } else {
+        toast.error(data.error || "Failed to generate report");
       }
     } catch (error) {
       console.error("Error fetching report:", error);
+      toast.error("An error occurred while generating report");
     } finally {
       setLoading(false);
     }
@@ -229,6 +279,12 @@ export default function ReportsPage() {
                 onClick={() => {
                   setActiveTab(tab.id);
                   setReportData(null);
+                  // Reset filters when switching tabs
+                  setFilters({
+                    vehicleId: "",
+                    employeeId: "",
+                    billType: "",
+                  });
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
@@ -245,7 +301,7 @@ export default function ReportsPage() {
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">Start Date (Optional)</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -256,7 +312,7 @@ export default function ReportsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">End Date (Optional)</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -266,6 +322,77 @@ export default function ReportsPage() {
                 }
               />
             </div>
+
+            {/* Bills Report Filters */}
+            {activeTab === "bills" && (
+              <>
+                <div>
+                  <Label htmlFor="billType">Bill Type (Optional)</Label>
+                  <Select
+                    value={filters.billType || undefined}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, billType: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="income">Income</SelectItem>
+                      <SelectItem value="expense">Expense</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="employeeId">Agent (Optional)</Label>
+                  <Select
+                    value={filters.employeeId || undefined}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, employeeId: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Agents" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Agents</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp._id} value={emp._id}>
+                          {emp.name} - {emp.iqamaId}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {/* Payments Report Filters */}
+            {activeTab === "payments" && (
+              <div>
+                <Label htmlFor="vehicleId">Vehicle (Optional)</Label>
+                <Select
+                  value={filters.vehicleId || undefined}
+                  onValueChange={(value) =>
+                    setFilters({ ...filters, vehicleId: value === "all" ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Vehicles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vehicles</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle._id} value={vehicle._id}>
+                        {vehicle.number} - {vehicle.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="flex items-end">
               <Button onClick={fetchReport} disabled={loading} className="w-full">
                 {loading ? "Loading..." : "Generate Report"}

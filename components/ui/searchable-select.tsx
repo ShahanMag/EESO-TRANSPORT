@@ -19,6 +19,8 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   disabled?: boolean;
   className?: string;
+  onSearchChange?: (search: string) => void; // Optional callback for external search handling
+  loading?: boolean; // Optional loading state
 }
 
 export function SearchableSelect({
@@ -30,6 +32,8 @@ export function SearchableSelect({
   searchPlaceholder = "Search...",
   disabled = false,
   className,
+  onSearchChange,
+  loading = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -38,8 +42,11 @@ export function SearchableSelect({
 
   const selectedOption = options.find((option) => option.value === value);
 
-  // Filter options based on search
+  // Filter options based on search (only if onSearchChange is not provided)
   const filteredOptions = React.useMemo(() => {
+    // If external search is provided, don't filter locally
+    if (onSearchChange) return options;
+
     if (!search) return options;
     const searchLower = search.toLowerCase();
     return options.filter(
@@ -47,7 +54,7 @@ export function SearchableSelect({
         option.label.toLowerCase().includes(searchLower) ||
         option.subtitle?.toLowerCase().includes(searchLower)
     );
-  }, [options, search]);
+  }, [options, search, onSearchChange]);
 
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -136,14 +143,24 @@ export function SearchableSelect({
               type="text"
               placeholder={searchPlaceholder}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                // Call external search handler if provided
+                if (onSearchChange) {
+                  onSearchChange(e.target.value);
+                }
+              }}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Options List */}
           <div className="max-h-[300px] overflow-y-auto p-1">
-            {filteredOptions.length === 0 ? (
+            {loading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Loading...
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </div>

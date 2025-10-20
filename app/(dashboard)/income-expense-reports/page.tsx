@@ -247,7 +247,7 @@ export default function IncomeExpenseReportsPage() {
               >
                 {formatCurrency(netProfit)}
               </div>
-              <DollarSign
+              <TrendingUp
                 className={`h-8 w-8 ${netProfit >= 0 ? "text-blue-600" : "text-orange-600"}`}
               />
             </div>

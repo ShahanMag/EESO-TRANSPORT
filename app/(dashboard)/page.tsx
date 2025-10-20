@@ -65,6 +65,7 @@ export default function DashboardPage() {
     from: "",
     to: "",
   });
+console.log(recentPayments);
 
   useEffect(() => {
     fetchDashboardData();
@@ -239,7 +240,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Recent Vehicle Payments */}
-        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200 h-[500px] overflow-y-auto">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-indigo-900">
@@ -287,14 +288,14 @@ export default function DashboardPage() {
                       <Calendar className="h-3 w-3 mr-1" />
                       {formatDate(payment.date)}
                     </div>
-                    <div className="flex space-x-4">
+                    {/* <div className="flex space-x-4">
                       <span className="text-green-600 font-semibold">
                         Paid: {formatCurrency(payment.paidAmount)}
                       </span>
                       <span className="text-red-600 font-semibold">
                         Due: {formatCurrency(payment.dues)}
                       </span>
-                    </div>
+                    </div> */}
                   </div>
                   {payment.remarks && (
                     <p className="text-xs text-gray-500 mt-2 italic">{payment.remarks}</p>

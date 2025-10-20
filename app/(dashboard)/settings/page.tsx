@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, UserCog, Shield, Edit, Trash2 } from "lucide-react";
+import { Plus, UserCog, Shield, Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -45,6 +45,7 @@ export default function SettingsPage() {
     role: "admin" as "admin" | "super_admin",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     fetchAdmins();
@@ -178,6 +179,7 @@ export default function SettingsPage() {
     setEditingAdmin(null);
     setFormData({ username: "", password: "", role: "admin" });
     setErrors({});
+    setShowPassword(false);
   }
 
   function handleDeleteClick(admin: Admin) {
@@ -326,19 +328,36 @@ export default function SettingsPage() {
                     <span className="text-red-500">*</span>
                   )}
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  placeholder={
-                    editingAdmin
-                      ? "Leave blank to keep current password"
-                      : "At least 8 characters"
-                  }
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    placeholder={
+                      editingAdmin
+                        ? "Leave blank to keep current password"
+                        : "At least 8 characters"
+                    }
+                    className="pr-10"
+                  />
+                  {formData.password && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                </div>
                 {errors.password && (
                   <p className="text-sm text-red-500 mt-1">{errors.password}</p>
                 )}

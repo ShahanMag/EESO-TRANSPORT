@@ -29,6 +29,9 @@ import {
   Download,
   UserX,
   ImagePlus,
+  Eye,
+  Camera,
+  User,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import Image from "next/image";
@@ -83,8 +86,12 @@ export default function EmployeesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [parsedEmployees, setParsedEmployees] = useState<any[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [terminatingEmployee, setTerminatingEmployee] =
     useState<Employee | null>(null);
@@ -92,6 +99,14 @@ export default function EmployeesPage() {
     date: new Date().toISOString().split("T")[0],
     reason: "",
   });
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
+  const [showTerminated, setShowTerminated] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<"all" | "employee" | "agent">("all");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
 
   // Initial load - fetch immediately
   useEffect(() => {
@@ -110,18 +125,30 @@ export default function EmployeesPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
+  // Refetch when terminated filter changes
+  useEffect(() => {
+    fetchEmployees(searchTerm, 1, pagination.itemsPerPage, showTerminated, typeFilter);
+  }, [showTerminated]);
+
+  // Refetch when type filter changes
+  useEffect(() => {
+    fetchEmployees(searchTerm, 1, pagination.itemsPerPage, showTerminated, typeFilter);
+  }, [typeFilter]);
+
   function handlePageChange(page: number) {
-    fetchEmployees(searchTerm, page, pagination.itemsPerPage);
+    fetchEmployees(searchTerm, page, pagination.itemsPerPage, showTerminated, typeFilter);
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchEmployees(searchTerm, 1, limit); // Reset to page 1 when changing items per page
+    fetchEmployees(searchTerm, 1, limit, showTerminated, typeFilter); // Reset to page 1 when changing items per page
   }
 
   async function fetchEmployees(
     search = "",
     page = pagination.currentPage,
-    limit = pagination.itemsPerPage
+    limit = pagination.itemsPerPage,
+    terminated = showTerminated,
+    type = typeFilter
   ) {
     try {
       if (search) {
@@ -137,6 +164,15 @@ export default function EmployeesPage() {
 
       if (search) {
         params.append("search", search);
+      }
+
+      if (type !== "all") {
+        params.append("type", type);
+      }
+
+      // Only add terminated parameter when explicitly showing terminated employees
+      if (terminated) {
+        params.append("terminated", "true");
       }
 
       const url = `/api/employees?${params.toString()}`;
@@ -182,42 +218,19 @@ export default function EmployeesPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setUploadingImage(true);
-    const newImageUrls: string[] = [];
+    const file = files[0]; // Only take the first file for profile photo
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append("file", file);
+    // Create a preview URL for the image
+    const previewUrl = URL.createObjectURL(file);
+    setImageUrls([previewUrl]);
+    setImageFile(file);
 
-        const res = await apiRequest("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          newImageUrls.push(data.url);
-        } else {
-          toast.error(`Failed to upload ${file.name}`);
-        }
-      }
-
-      setImageUrls([...imageUrls, ...newImageUrls]);
-      toast.success(`${newImageUrls.length} image(s) uploaded successfully`);
-    } catch (error) {
-      console.error("Error uploading images:", error);
-      toast.error("Error uploading images");
-    } finally {
-      setUploadingImage(false);
-      e.target.value = "";
-    }
+    e.target.value = "";
   }
 
-  function handleRemoveImage(index: number) {
-    setImageUrls(imageUrls.filter((_, i) => i !== index));
+  function handleRemoveImage() {
+    setImageUrls([]);
+    setImageFile(null);
   }
 
   function validateForm() {
@@ -248,24 +261,33 @@ export default function EmployeesPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
+
     try {
       const url = editingEmployee
         ? `/api/employees/${editingEmployee._id}`
         : "/api/employees";
       const method = editingEmployee ? "PUT" : "POST";
 
+      // Create FormData to send employee data with image file
+      const formDataToSend = new FormData();
+      formDataToSend.append("name", formData.name);
+      formDataToSend.append("iqamaId", formData.iqamaId);
+      formDataToSend.append("phone", formData.phone);
+      formDataToSend.append("type", formData.type);
+      if (formData.joinDate) {
+        formDataToSend.append("joinDate", new Date(formData.joinDate).toISOString());
+      }
+
+      // Add image file if selected
+      if (imageFile) {
+        formDataToSend.append("image", imageFile);
+      }
+
       const res = await fetch(`${API_URL}${url}`, {
         method,
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          name: formData.name,
-          iqamaId: formData.iqamaId,
-          phone: formData.phone,
-          type: formData.type,
-          joinDate: formData.joinDate ? new Date(formData.joinDate) : undefined,
-          imageUrls: imageUrls,
-        }),
+        body: formDataToSend,
       });
 
       const data = await res.json();
@@ -335,6 +357,8 @@ export default function EmployeesPage() {
     } catch (error) {
       console.error("Error saving employee:", error);
       setErrors({ submit: "An error occurred" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -347,9 +371,43 @@ export default function EmployeesPage() {
     setIsTerminateDialogOpen(true);
   }
 
+  function handleDeleteClick(employee: Employee) {
+    setDeletingEmployee(employee);
+    setIsDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deletingEmployee) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/employees/${deletingEmployee._id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Employee deleted successfully");
+        fetchEmployees(searchTerm);
+        setIsDeleteDialogOpen(false);
+        setDeletingEmployee(null);
+      } else {
+        toast.error(data.error || "Failed to delete employee");
+      }
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast.error("An error occurred while deleting employee");
+    }
+  }
+
   async function handleTerminateConfirm(e: React.FormEvent) {
     e.preventDefault();
     if (!terminatingEmployee) return;
+
+    if (!terminateFormData.date || !terminateFormData.reason.trim()) {
+      toast.error("Please provide both termination date and reason");
+      return;
+    }
 
     try {
       // Get vehicles assigned to this employee
@@ -375,12 +433,17 @@ export default function EmployeesPage() {
         });
       }
 
-      // Delete the employee
+      // Terminate the employee (not delete)
       const res = await fetch(
-        `${API_URL}/api/employees/${terminatingEmployee._id}`,
+        `${API_URL}/api/employees/${terminatingEmployee._id}/terminate`,
         {
-          method: "DELETE",
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           credentials: "include",
+          body: JSON.stringify({
+            terminationDate: terminateFormData.date,
+            terminationReason: terminateFormData.reason,
+          }),
         }
       );
       const data = await res.json();
@@ -393,12 +456,35 @@ export default function EmployeesPage() {
         fetchVehicles();
         setIsTerminateDialogOpen(false);
         setTerminatingEmployee(null);
+        setTerminateFormData({
+          date: new Date().toISOString().split("T")[0],
+          reason: "",
+        });
       } else {
         toast.error(data.error || "Failed to terminate employee");
       }
     } catch (error) {
       console.error("Error terminating employee:", error);
       toast.error("An error occurred while terminating employee");
+    }
+  }
+
+  async function handleViewEmployee(employee: Employee) {
+    try {
+      const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setViewingEmployee(data.data);
+        setIsViewDialogOpen(true);
+      } else {
+        toast.error("Failed to fetch employee details");
+      }
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      toast.error("Error loading employee data");
     }
   }
 
@@ -424,6 +510,7 @@ export default function EmployeesPage() {
               : "",
           });
           setImageUrls(fullEmployee.imageUrls || []);
+          setImageFile(null); // Reset image file when editing existing employee
           // Load vehicles assigned to this employee
           const assignedVehicles = vehicles
             .filter((v) => {
@@ -456,6 +543,7 @@ export default function EmployeesPage() {
       });
       setSelectedVehicles([]);
       setImageUrls([]);
+      setImageFile(null);
     }
     setErrors({});
     setIsDialogOpen(true);
@@ -473,6 +561,8 @@ export default function EmployeesPage() {
     });
     setSelectedVehicles([]);
     setImageUrls([]);
+    setImageFile(null);
+    setVehicleSearchTerm("");
     setErrors({});
   }
 
@@ -509,11 +599,10 @@ export default function EmployeesPage() {
     toast.success("Template downloaded successfully");
   }
 
-  async function handleBulkUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -634,30 +723,67 @@ export default function EmployeesPage() {
         }
       }
 
+      // Store validation errors and parsed employees
+      setValidationErrors(errors);
+      setParsedEmployees(employees);
+
       // If there are validation errors, show them
       if (errors.length > 0) {
-        toast.error(
-          `${errors.length} row(s) failed validation. Check console for details.`
+        toast.warning(
+          `${errors.length} row(s) failed validation. Check the preview below.`
         );
-        console.error("Bulk upload validation errors:", errors);
       }
 
-      // If there are no valid employees, exit
+      // If there are no valid employees, show error
       if (employees.length === 0) {
-        toast.error("No valid employees to upload");
-        setIsBulkUploadDialogOpen(false);
-        return;
+        toast.error("No valid employees found in the file");
+        setParsedEmployees([]);
+        setValidationErrors(errors);
+      } else {
+        toast.success(`${employees.length} employee(s) ready to upload`);
       }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Error processing file. Please check the format.");
+    } finally {
+      // Reset file input
+      e.target.value = "";
+    }
+  }
+
+  async function handleBulkUploadSubmit() {
+    if (parsedEmployees.length === 0) {
+      toast.error("No employees to upload");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate progress for animation
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          return prev + 10;
+        });
+      }, 100);
 
       // Send all employees in a single request
       const res = await fetch(`${API_URL}/api/employees/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ employees }),
+        body: JSON.stringify({ employees: parsedEmployees }),
       });
 
       const result = await res.json();
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      // Delay for animation
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       if (result.success) {
         toast.success(result.message || `Successfully uploaded employee(s)`);
@@ -669,6 +795,9 @@ export default function EmployeesPage() {
         }
         fetchEmployees(searchTerm);
         setIsBulkUploadDialogOpen(false);
+        setParsedEmployees([]);
+        setValidationErrors([]);
+        setUploadProgress(0);
       } else {
         toast.error(result.error || "Failed to upload employees");
         if (result.data?.errors) {
@@ -676,12 +805,11 @@ export default function EmployeesPage() {
         }
       }
     } catch (error) {
-      console.error("Error processing file:", error);
-      toast.error("Error processing file. Please check the format.");
+      console.error("Error uploading employees:", error);
+      toast.error("An error occurred while uploading employees");
     } finally {
       setIsUploading(false);
-      // Reset file input
-      e.target.value = "";
+      setUploadProgress(0);
     }
   }
 
@@ -737,27 +865,98 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search by name, Iqama ID, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          {searching && (
-            <div className="absolute right-3 top-3">
-              <LoadingSpinner />
-            </div>
-          )}
+      <div className="mb-4 space-y-3">
+        {/* Search and Filters Row */}
+        <div className="flex gap-3 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by name, Iqama ID, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            {searching && (
+              <div className="absolute right-3 top-3">
+                <LoadingSpinner />
+              </div>
+            )}
+          </div>
         </div>
-        {searchTerm && (
-          <div className="mt-2 text-xs text-gray-500">
-            Searching for:{" "}
-            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-              {searchTerm}
-            </span>
+
+        {/* Filter Buttons Row */}
+        <div className="flex gap-2 flex-wrap">
+          {/* Type Filter */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={typeFilter === "all" ? "default" : "ghost"}
+              onClick={() => setTypeFilter("all")}
+              className="h-8"
+            >
+              All Types
+            </Button>
+            <Button
+              size="sm"
+              variant={typeFilter === "employee" ? "default" : "ghost"}
+              onClick={() => setTypeFilter("employee")}
+              className="h-8"
+            >
+              Employees
+            </Button>
+            <Button
+              size="sm"
+              variant={typeFilter === "agent" ? "default" : "ghost"}
+              onClick={() => setTypeFilter("agent")}
+              className="h-8"
+            >
+              Agents
+            </Button>
+          </div>
+
+          {/* Terminated Filter */}
+          <Button
+            size="sm"
+            variant={showTerminated ? "destructive" : "outline"}
+            onClick={() => setShowTerminated(!showTerminated)}
+            className="h-8"
+          >
+            <UserX className="mr-2 h-4 w-4" />
+            {showTerminated ? "Showing Terminated" : "Show Terminated"}
+          </Button>
+        </div>
+
+        {/* Active Filters Display */}
+        {(searchTerm || showTerminated || typeFilter !== "all") && (
+          <div className="flex flex-wrap gap-2 items-center text-xs">
+            <span className="text-gray-500 font-medium">Active Filters:</span>
+            {searchTerm && (
+              <Badge variant="secondary" className="gap-1">
+                Search: {searchTerm}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => setSearchTerm("")}
+                />
+              </Badge>
+            )}
+            {typeFilter !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                Type: {typeFilter === "employee" ? "Employees" : "Agents"}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => setTypeFilter("all")}
+                />
+              </Badge>
+            )}
+            {showTerminated && (
+              <Badge variant="destructive" className="gap-1">
+                Terminated Only
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => setShowTerminated(false)}
+                />
+              </Badge>
+            )}
           </div>
         )}
       </div>
@@ -853,7 +1052,16 @@ export default function EmployeesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => handleViewEmployee(employee)}
+                      title="View Employee"
+                    >
+                      <Eye className="h-4 w-4 text-blue-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleOpenDialog(employee)}
+                      title="Edit Employee"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -864,6 +1072,14 @@ export default function EmployeesPage() {
                       title="Terminate Employee"
                     >
                       <UserX className="h-4 w-4 text-red-500" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteClick(employee)}
+                      title="Delete Employee"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </td>
                 </tr>
@@ -898,6 +1114,66 @@ export default function EmployeesPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
+              {/* Profile Photo Section - Top */}
+              <div className="flex flex-col items-center justify-center pb-6 border-b">
+                <div className="relative group">
+                  {/* Circular Image Container */}
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 border-4 border-blue-300 shadow-lg flex items-center justify-center">
+                    {imageUrls.length > 0 ? (
+                      <Image
+                        src={imageUrls[0]}
+                        alt="Profile photo"
+                        width={128}
+                        height={128}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-16 h-16 text-blue-400" strokeWidth={1.5} />
+                    )}
+                  </div>
+
+                  {/* Edit/Upload Button Overlay */}
+                  <label
+                    htmlFor="profile-image-upload-input"
+                    className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2.5 shadow-lg transition-all duration-200 hover:scale-110 cursor-pointer"
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="hidden"
+                      id="profile-image-upload-input"
+                    />
+                    <Camera className="h-5 w-5" />
+                  </label>
+
+                  {/* Remove Button (only show if image exists) */}
+                  {imageUrls.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                      title="Remove photo"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                {uploadingImage && (
+                  <p className="text-xs text-blue-600 mt-3 flex items-center gap-2">
+                    <LoadingSpinner /> Uploading...
+                  </p>
+                )}
+                {imageUrls.length > 0 && !uploadingImage && (
+                  <p className="text-xs text-gray-500 mt-3">
+                    {imageFile ? "Photo selected - will upload on save" : "Photo uploaded"}
+                  </p>
+                )}
+              </div>
+
+              {/* Employee Details */}
               <div>
                 <Label htmlFor="name">Name</Label>
                 <Input
@@ -972,63 +1248,94 @@ export default function EmployeesPage() {
               </div>
               <div>
                 <Label>Assign Vehicles (Optional)</Label>
+                {/* Vehicle Search */}
+                <div className="mt-2 mb-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search vehicles..."
+                      value={vehicleSearchTerm}
+                      onChange={(e) => setVehicleSearchTerm(e.target.value)}
+                      className="pl-8 h-9"
+                    />
+                  </div>
+                </div>
                 <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
                   {vehicles.length === 0 ? (
                     <p className="text-sm text-gray-500">
                       No vehicles available
                     </p>
                   ) : (
-                    vehicles.map((vehicle) => (
-                      <div
-                        key={vehicle._id}
-                        className="flex items-center space-x-2"
-                      >
-                        <input
-                          type="checkbox"
-                          id={`vehicle-${vehicle._id}`}
-                          checked={selectedVehicles.includes(vehicle._id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedVehicles([
-                                ...selectedVehicles,
-                                vehicle._id,
-                              ]);
-                            } else {
-                              setSelectedVehicles(
-                                selectedVehicles.filter(
-                                  (id) => id !== vehicle._id
+                    (() => {
+                      // Filter vehicles based on search term
+                      const filteredVehicles = vehicles.filter((vehicle) => {
+                        const searchLower = vehicleSearchTerm.toLowerCase();
+                        return (
+                          vehicle.number.toLowerCase().includes(searchLower) ||
+                          vehicle.name.toLowerCase().includes(searchLower)
+                        );
+                      });
+
+                      if (filteredVehicles.length === 0) {
+                        return (
+                          <p className="text-sm text-gray-500 italic">
+                            No vehicles found matching &quot;{vehicleSearchTerm}&quot;
+                          </p>
+                        );
+                      }
+
+                      return filteredVehicles.map((vehicle) => (
+                        <div
+                          key={vehicle._id}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            id={`vehicle-${vehicle._id}`}
+                            checked={selectedVehicles.includes(vehicle._id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedVehicles([
+                                  ...selectedVehicles,
+                                  vehicle._id,
+                                ]);
+                              } else {
+                                setSelectedVehicles(
+                                  selectedVehicles.filter(
+                                    (id) => id !== vehicle._id
+                                  )
+                                );
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label
+                            htmlFor={`vehicle-${vehicle._id}`}
+                            className="text-sm cursor-pointer flex-1"
+                          >
+                            {vehicle.number} - {vehicle.name}
+                            {(() => {
+                              // Handle both populated and non-populated employeeId
+                              const empId =
+                                typeof vehicle.employeeId === "object" &&
+                                vehicle.employeeId !== null
+                                  ? (vehicle.employeeId as any)._id
+                                  : vehicle.employeeId;
+
+                              // Show "Already assigned" only if vehicle is assigned to a different employee
+                              return (
+                                empId &&
+                                empId !== editingEmployee?._id && (
+                                  <span className="text-xs text-red-500 ml-2">
+                                    (Already assigned)
+                                  </span>
                                 )
                               );
-                            }
-                          }}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <label
-                          htmlFor={`vehicle-${vehicle._id}`}
-                          className="text-sm cursor-pointer flex-1"
-                        >
-                          {vehicle.number} - {vehicle.name}
-                          {(() => {
-                            // Handle both populated and non-populated employeeId
-                            const empId =
-                              typeof vehicle.employeeId === "object" &&
-                              vehicle.employeeId !== null
-                                ? (vehicle.employeeId as any)._id
-                                : vehicle.employeeId;
-
-                            // Show "Already assigned" only if vehicle is assigned to a different employee
-                            return (
-                              empId &&
-                              empId !== editingEmployee?._id && (
-                                <span className="text-xs text-red-500 ml-2">
-                                  (Already assigned)
-                                </span>
-                              )
-                            );
-                          })()}
-                        </label>
-                      </div>
-                    ))
+                            })()}
+                          </label>
+                        </div>
+                      ));
+                    })()
                   )}
                 </div>
                 {selectedVehicles.length > 0 && (
@@ -1036,58 +1343,6 @@ export default function EmployeesPage() {
                     {selectedVehicles.length} vehicle(s) selected
                   </p>
                 )}
-              </div>
-              <div>
-                <Label>Employee Images (Optional)</Label>
-                <div className="space-y-3">
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      id="image-upload-input"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={uploadingImage}
-                      className="w-full"
-                    >
-                      <ImagePlus className="mr-2 h-4 w-4" />
-                      {uploadingImage ? "Uploading..." : "Upload Images"}
-                    </Button>
-                  </div>
-                  {imageUrls.length > 0 && (
-                    <div className="grid grid-cols-3 gap-3">
-                      {imageUrls.map((url, index) => (
-                        <div key={index} className="relative group">
-                          <Image
-                            src={url}
-                            alt={`Employee image ${index + 1}`}
-                            width={100}
-                            height={100}
-                            className="w-full h-24 object-cover rounded-md border"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {imageUrls.length > 0 && (
-                    <p className="text-xs text-gray-600">
-                      {imageUrls.length} image(s) uploaded
-                    </p>
-                  )}
-                </div>
               </div>
               {errors.submit && (
                 <p className="text-sm text-red-500">{errors.submit}</p>
@@ -1098,14 +1353,129 @@ export default function EmployeesPage() {
                 type="button"
                 variant="outline"
                 onClick={handleCloseDialog}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingEmployee ? "Update" : "Create"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <LoadingSpinner />
+                    {editingEmployee ? "Updating..." : "Creating..."}
+                  </>
+                ) : (
+                  editingEmployee ? "Update" : "Create"
+                )}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Employee Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Employee Details</DialogTitle>
+          </DialogHeader>
+          {viewingEmployee && (
+            <div className="space-y-4">
+              {/* Profile Photo Section - Top */}
+              <div className="flex flex-col items-center justify-center pb-4 border-b">
+                <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 border-4 border-blue-300 shadow-lg flex items-center justify-center mb-3">
+                  {viewingEmployee.imageUrls && viewingEmployee.imageUrls.length > 0 ? (
+                    <Image
+                      src={viewingEmployee.imageUrls[0]}
+                      alt="Profile photo"
+                      width={128}
+                      height={128}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-16 h-16 text-blue-400" strokeWidth={1.5} />
+                  )}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-800">{viewingEmployee.name}</h3>
+              </div>
+
+              {/* Employee Details - Read Only */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-600">Name</Label>
+                  <p className="text-lg font-medium">{viewingEmployee.name}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Iqama ID</Label>
+                  <p className="text-lg font-medium">{viewingEmployee.iqamaId}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Phone</Label>
+                  <p className="text-lg font-medium">{viewingEmployee.phone || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Type</Label>
+                  <div>
+                    <Badge
+                      variant={
+                        viewingEmployee.type === "agent" ? "default" : "secondary"
+                      }
+                    >
+                      {viewingEmployee.type === "agent" ? "Agent" : "Employee"}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Join Date</Label>
+                  <p className="text-lg font-medium">
+                    {viewingEmployee.joinDate
+                      ? new Date(viewingEmployee.joinDate).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-gray-600">Assigned Vehicles</Label>
+                  <p className="text-lg font-medium">
+                    {(() => {
+                      const assignedVehicles = vehicles
+                        .filter((v) => {
+                          const empId =
+                            typeof v.employeeId === "object" && v.employeeId !== null
+                              ? (v.employeeId as any)._id
+                              : v.employeeId;
+                          return empId === viewingEmployee._id;
+                        })
+                        .map((v) => v.number)
+                        .join(", ");
+                      return assignedVehicles || (
+                        <span className="text-gray-400 italic text-sm">No vehicles</span>
+                      );
+                    })()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                if (viewingEmployee) {
+                  handleOpenDialog(viewingEmployee);
+                }
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -1149,7 +1519,7 @@ export default function EmployeesPage() {
                   <input
                     type="file"
                     accept=".xlsx,.xls"
-                    onChange={handleBulkUpload}
+                    onChange={handleFileSelect}
                     disabled={isUploading}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     id="bulk-upload-input"
@@ -1158,13 +1528,73 @@ export default function EmployeesPage() {
                     type="button"
                     disabled={isUploading}
                     className="w-full"
+                    variant="outline"
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {isUploading ? "Uploading..." : "Upload Excel File"}
+                    Select Excel File
                   </Button>
                 </div>
               </div>
             </div>
+
+            {/* Preview Section */}
+            {parsedEmployees.length > 0 && (
+              <div className="border border-gray-300 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Preview ({parsedEmployees.length} employee{parsedEmployees.length > 1 ? 's' : ''} ready)
+                </h3>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded p-3">
+                  <div className="space-y-2 text-sm">
+                    {parsedEmployees.slice(0, 5).map((emp, idx) => (
+                      <div key={idx} className="flex justify-between items-center border-b border-gray-200 pb-2">
+                        <span className="font-medium">{emp.name}</span>
+                        <span className="text-gray-600">{emp.iqamaId}</span>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {emp.type}
+                        </span>
+                      </div>
+                    ))}
+                    {parsedEmployees.length > 5 && (
+                      <p className="text-gray-500 text-center pt-2">
+                        ...and {parsedEmployees.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {validationErrors.length > 0 && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                    <p className="font-semibold text-yellow-800 mb-1">
+                      {validationErrors.length} row(s) had errors:
+                    </p>
+                    <div className="max-h-24 overflow-y-auto text-yellow-700">
+                      {validationErrors.slice(0, 3).map((err, idx) => (
+                        <p key={idx} className="text-xs">• {err}</p>
+                      ))}
+                      {validationErrors.length > 3 && (
+                        <p className="text-xs italic">...and {validationErrors.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {isUploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Uploading employees...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
@@ -1198,11 +1628,26 @@ export default function EmployeesPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsBulkUploadDialogOpen(false)}
+              onClick={() => {
+                setIsBulkUploadDialogOpen(false);
+                setParsedEmployees([]);
+                setValidationErrors([]);
+                setUploadProgress(0);
+              }}
               disabled={isUploading}
             >
               Close
             </Button>
+            {parsedEmployees.length > 0 && (
+              <Button
+                type="button"
+                onClick={handleBulkUploadSubmit}
+                disabled={isUploading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isUploading ? "Uploading..." : `Upload ${parsedEmployees.length} Employee${parsedEmployees.length > 1 ? 's' : ''}`}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1302,6 +1747,17 @@ export default function EmployeesPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Employee Confirmation Dialog */}
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Employee"
+        description={`Are you sure you want to delete ${deletingEmployee?.name || 'this employee'}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }

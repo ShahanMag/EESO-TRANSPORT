@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Edit, Trash2, Upload, Download } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Upload, Download, XCircle, Ban } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -87,6 +87,13 @@ export default function VehiclesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showTerminated, setShowTerminated] = useState(false);
+  const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
+  const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(null);
+  const [terminateFormData, setTerminateFormData] = useState({
+    terminationDate: new Date().toISOString().split("T")[0],
+    terminationReason: "",
+  });
 
   // Initial load - fetch immediately
   useEffect(() => {
@@ -105,18 +112,24 @@ export default function VehiclesPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
+  // Refetch when terminated filter changes
+  useEffect(() => {
+    fetchVehicles(searchTerm, 1, pagination.itemsPerPage, showTerminated);
+  }, [showTerminated]);
+
   function handlePageChange(page: number) {
-    fetchVehicles(searchTerm, page, pagination.itemsPerPage);
+    fetchVehicles(searchTerm, page, pagination.itemsPerPage, showTerminated);
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchVehicles(searchTerm, 1, limit); // Reset to page 1 when changing items per page
+    fetchVehicles(searchTerm, 1, limit, showTerminated); // Reset to page 1 when changing items per page
   }
 
   async function fetchVehicles(
     search = "",
     page = pagination.currentPage,
-    limit = pagination.itemsPerPage
+    limit = pagination.itemsPerPage,
+    terminated = showTerminated
   ) {
     try {
       if (search) {
@@ -132,6 +145,11 @@ export default function VehiclesPage() {
 
       if (search) {
         params.append("search", search);
+      }
+
+      // Only add terminated parameter when explicitly showing terminated vehicles
+      if (terminated) {
+        params.append("terminated", "true");
       }
 
       const url = `/api/vehicles?${params.toString()}`;
@@ -358,6 +376,54 @@ export default function VehiclesPage() {
       employeeId: "unassigned",
     });
     setErrors({});
+  }
+
+  function handleTerminateClick(vehicle: Vehicle) {
+    setTerminatingVehicle(vehicle);
+    setTerminateFormData({
+      terminationDate: new Date().toISOString().split("T")[0],
+      terminationReason: "",
+    });
+    setIsTerminateDialogOpen(true);
+  }
+
+  async function handleTerminateConfirm() {
+    if (!terminatingVehicle) return;
+
+    if (!terminateFormData.terminationDate || !terminateFormData.terminationReason) {
+      toast.error("Please provide both termination date and reason");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/vehicles/${terminatingVehicle._id}/terminate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(terminateFormData),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Vehicle terminated successfully");
+        fetchVehicles(searchTerm);
+        setIsTerminateDialogOpen(false);
+        setTerminatingVehicle(null);
+        setTerminateFormData({
+          terminationDate: new Date().toISOString().split("T")[0],
+          terminationReason: "",
+        });
+      } else {
+        toast.error(data.error || "Failed to terminate vehicle");
+      }
+    } catch (error) {
+      console.error("Error terminating vehicle:", error);
+      toast.error("An error occurred while terminating vehicle");
+    }
   }
 
   function downloadTemplate() {
@@ -689,20 +755,30 @@ export default function VehiclesPage() {
       </div>
 
       <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search by vehicle number or name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-            dir="auto"
-          />
-          {searching && (
-            <div className="absolute right-3 top-3">
-              <LoadingSpinner />
-            </div>
-          )}
+        <div className="flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by vehicle number or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+              dir="auto"
+            />
+            {searching && (
+              <div className="absolute right-3 top-3">
+                <LoadingSpinner />
+              </div>
+            )}
+          </div>
+          <Button
+            variant={showTerminated ? "destructive" : "outline"}
+            onClick={() => setShowTerminated(!showTerminated)}
+            className="whitespace-nowrap"
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            {showTerminated ? "Showing Terminated" : "Show Terminated"}
+          </Button>
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
@@ -715,6 +791,11 @@ export default function VehiclesPage() {
             </span>
           </div>
         )}
+        {showTerminated && (
+          <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded border border-orange-200">
+            Showing terminated vehicles only
+          </div>
+        )}
       </div>
 
       {/* Desktop Table View */}
@@ -723,10 +804,16 @@ export default function VehiclesPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                SI NO
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Vehicle Number
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Vehicle Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Serial Number
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Type
@@ -749,17 +836,23 @@ export default function VehiclesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {vehicles.map((vehicle) => (
+            {vehicles.map((vehicle, index) => (
               <tr
                 key={vehicle._id}
                 className="hover:bg-gray-50 cursor-pointer"
                 onClick={() => router.push(`/vehicles/${vehicle._id}`)}
               >
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {(pagination.currentPage - 1) * pagination.itemsPerPage + index + 1}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {vehicle.number}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {vehicle.name}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {vehicle.serialNumber || "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <span
@@ -806,6 +899,7 @@ export default function VehiclesPage() {
                       e.stopPropagation();
                       handleOpenDialog(vehicle);
                     }}
+                    title="Edit Vehicle"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -814,8 +908,20 @@ export default function VehiclesPage() {
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
+                      handleTerminateClick(vehicle);
+                    }}
+                    title="Terminate Contract"
+                  >
+                    <Ban className="h-4 w-4 text-orange-500" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       handleDeleteClick(vehicle._id);
                     }}
+                    title="Delete Vehicle"
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -1220,6 +1326,99 @@ export default function VehiclesPage() {
               disabled={isUploading}
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Terminate Vehicle Dialog */}
+      <Dialog open={isTerminateDialogOpen} onOpenChange={setIsTerminateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Terminate Vehicle Contract</DialogTitle>
+          </DialogHeader>
+          {terminatingVehicle && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm font-semibold text-blue-900">
+                  Vehicle: {terminatingVehicle.number} - {terminatingVehicle.name}
+                </p>
+                {terminatingVehicle.serialNumber && (
+                  <p className="text-xs text-blue-700 mt-1">
+                    Serial: {terminatingVehicle.serialNumber}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="terminationDate">
+                  Termination Date <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="terminationDate"
+                  type="date"
+                  value={terminateFormData.terminationDate}
+                  onChange={(e) =>
+                    setTerminateFormData({
+                      ...terminateFormData,
+                      terminationDate: e.target.value,
+                    })
+                  }
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="terminationReason">
+                  Termination Reason <span className="text-red-500">*</span>
+                </Label>
+                <textarea
+                  id="terminationReason"
+                  value={terminateFormData.terminationReason}
+                  onChange={(e) =>
+                    setTerminateFormData({
+                      ...terminateFormData,
+                      terminationReason: e.target.value,
+                    })
+                  }
+                  placeholder="Enter reason for terminating this vehicle contract..."
+                  className="w-full min-h-[100px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md text-sm text-yellow-800">
+                <p className="font-medium">Note:</p>
+                <p className="mt-1">
+                  Terminating a vehicle contract will mark it as inactive. The vehicle
+                  can be viewed by enabling the "Show Terminated" filter.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsTerminateDialogOpen(false);
+                setTerminatingVehicle(null);
+                setTerminateFormData({
+                  terminationDate: new Date().toISOString().split("T")[0],
+                  terminationReason: "",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleTerminateConfirm}
+              disabled={
+                !terminateFormData.terminationDate ||
+                !terminateFormData.terminationReason.trim()
+              }
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              Terminate Contract
             </Button>
           </DialogFooter>
         </DialogContent>

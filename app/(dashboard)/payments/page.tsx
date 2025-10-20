@@ -89,6 +89,9 @@ export default function PaymentsPage() {
     type: "payment" | "installment" | null;
     id: string | null;
   }>({ open: false, type: null, id: null });
+  const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
+  const [searchedVehicles, setSearchedVehicles] = useState<Vehicle[]>([]);
+  const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
 
   const [paymentFormData, setPaymentFormData] = useState({
     vehicleId: "",
@@ -109,6 +112,18 @@ export default function PaymentsPage() {
     fetchPayments();
     fetchVehicles();
   }, []);
+
+  // Debounced vehicle search effect
+  useEffect(() => {
+    // Don't search when dialog is closed or when editing a payment
+    if (!isPaymentDialogOpen || editingPayment) return;
+
+    const delayDebounceFn = setTimeout(() => {
+      searchVehicles(vehicleSearchTerm);
+    }, 300); // 300ms delay after user stops typing
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [vehicleSearchTerm, isPaymentDialogOpen, editingPayment]);
 
   useEffect(() => {
     // Group payments by vehicle
@@ -238,6 +253,31 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error("Error fetching vehicles:", error);
+    }
+  }
+
+  async function searchVehicles(search: string) {
+    try {
+      setIsSearchingVehicles(true);
+      const params = new URLSearchParams({
+        limit: "50", // Get more results for search
+      });
+
+      if (search) {
+        params.append("search", search);
+      }
+
+      const res = await fetch(`${API_URL}/api/vehicles?${params.toString()}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSearchedVehicles(data.data);
+      }
+    } catch (error) {
+      console.error("Error searching vehicles:", error);
+    } finally {
+      setIsSearchingVehicles(false);
     }
   }
 
@@ -413,6 +453,16 @@ export default function PaymentsPage() {
         date: new Date(payment.date).toISOString().split("T")[0],
         remarks: payment.remarks || "",
       });
+      // For editing, set the current vehicle in searchedVehicles so it shows up
+      if (payment.vehicleId) {
+        setSearchedVehicles([
+          {
+            _id: payment.vehicleId._id,
+            number: payment.vehicleId.number,
+            name: payment.vehicleId.name,
+          },
+        ]);
+      }
     } else {
       setEditingPayment(null);
       setPaymentFormData({
@@ -421,6 +471,9 @@ export default function PaymentsPage() {
         date: new Date().toISOString().split("T")[0],
         remarks: "",
       });
+      setVehicleSearchTerm(""); // Reset search term
+      setSearchedVehicles([]); // Reset searched vehicles
+      searchVehicles(""); // Load initial vehicles
     }
     setErrors({});
     setIsPaymentDialogOpen(true);
@@ -429,6 +482,8 @@ export default function PaymentsPage() {
   function handleClosePaymentDialog() {
     setIsPaymentDialogOpen(false);
     setEditingPayment(null);
+    setVehicleSearchTerm("");
+    setSearchedVehicles([]);
     setErrors({});
   }
 
@@ -817,7 +872,7 @@ export default function PaymentsPage() {
               <div>
                 <Label htmlFor="vehicleId">Vehicle</Label>
                 <SearchableSelect
-                  options={vehicles.map((vehicle) => ({
+                  options={searchedVehicles.map((vehicle) => ({
                     value: vehicle._id,
                     label: vehicle.number,
                     subtitle: vehicle.name,
@@ -826,10 +881,18 @@ export default function PaymentsPage() {
                   onChange={(value) =>
                     setPaymentFormData({ ...paymentFormData, vehicleId: value })
                   }
+                  onSearchChange={(search) => setVehicleSearchTerm(search)}
+                  loading={isSearchingVehicles}
+                  disabled={!!editingPayment} // Disable when editing
                   placeholder="Select vehicle..."
                   searchPlaceholder="Search vehicles..."
                   emptyMessage="No vehicle found."
                 />
+                {editingPayment && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Vehicle cannot be changed when editing a payment
+                  </p>
+                )}
                 {errors.vehicleId && (
                   <p className="text-sm text-red-500 mt-1">{errors.vehicleId}</p>
                 )}
