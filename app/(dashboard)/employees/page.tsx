@@ -761,13 +761,15 @@ export default function EmployeesPage() {
     setUploadProgress(0);
 
     try {
-      // Simulate progress for animation
+      // Simulate progress with random stops for animation
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
           if (prev >= 90) return prev;
-          return prev + 10;
+          // Random increment between 2-15%
+          const randomIncrement = Math.floor(Math.random() * 13) + 2;
+          return Math.min(prev + randomIncrement, 89);
         });
-      }, 100);
+      }, 300);
 
       // Send all employees in a single request
       const res = await fetch(`${API_URL}/api/employees/bulk`, {

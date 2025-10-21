@@ -87,6 +87,9 @@ export default function VehiclesPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [parsedVehicles, setParsedVehicles] = useState<any[]>([]);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showTerminated, setShowTerminated] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(null);
@@ -526,12 +529,9 @@ export default function VehiclesPage() {
     return null;
   }
 
-  async function handleBulkUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    setIsUploading(true);
-    toast.info("Processing file... Please wait.");
 
     try {
       const data = await file.arrayBuffer();
@@ -540,10 +540,21 @@ export default function VehiclesPage() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
       const vehicles: any[] = [];
+      const errors: string[] = [];
 
-      // Prepare all vehicles without frontend validation
+      // Validate and prepare all vehicles first
       for (const row of jsonData as any[]) {
         try {
+          // Validate required fields
+          if (!row["Vehicle Number"] || !row["Vehicle Name"]) {
+            errors.push(
+              `Row with vehicle "${
+                row["Vehicle Number"] || "unknown"
+              }" is missing required fields (Vehicle Number and Vehicle Name)`
+            );
+            continue;
+          }
+
           const type = (
             row["Type (private/public)"] || "private"
           ).toLowerCase();
@@ -624,6 +635,14 @@ export default function VehiclesPage() {
             }
           }
 
+          // Validate type
+          if (type !== "private" && type !== "public") {
+            errors.push(
+              `Row "${row["Vehicle Number"]}": Type must be "private" or "public"`
+            );
+            continue;
+          }
+
           const employeeIqamaId = row["Employee Iqama ID (Optional)"];
 
           // Build vehicle data object
@@ -646,57 +665,99 @@ export default function VehiclesPage() {
 
           vehicles.push(vehicleData);
         } catch (error) {
-          // Silently continue, let backend handle validation
-          console.warn(`Row parsing warning:`, error);
+          errors.push(`Row "${row["Vehicle Number"]}": ${error}`);
         }
       }
 
-      if (vehicles.length === 0) {
-        toast.error("No vehicles found in the file");
-        setIsBulkUploadDialogOpen(false);
-        setIsUploading(false);
-        e.target.value = "";
-        return;
+      // Store validation errors and parsed vehicles
+      setValidationErrors(errors);
+      setParsedVehicles(vehicles);
+
+      // If there are validation errors, show them
+      if (errors.length > 0) {
+        toast.warning(
+          `${errors.length} row(s) failed validation. Check the preview below.`
+        );
       }
 
-      toast.info(`Uploading ${vehicles.length} vehicle(s)...`);
+      // If there are no valid vehicles, show error
+      if (vehicles.length === 0) {
+        toast.error("No valid vehicles found in the file");
+        setParsedVehicles([]);
+        setValidationErrors(errors);
+      } else {
+        toast.success(`${vehicles.length} vehicle(s) ready to upload`);
+      }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast.error("Error processing file. Please check the format.");
+    } finally {
+      // Reset file input
+      e.target.value = "";
+    }
+  }
+
+  async function handleBulkUploadSubmit() {
+    if (parsedVehicles.length === 0) {
+      toast.error("No vehicles to upload");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Simulate progress with random stops for animation
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) return prev;
+          // Random increment between 2-15%
+          const randomIncrement = Math.floor(Math.random() * 13) + 2;
+          return Math.min(prev + randomIncrement, 89);
+        });
+      }, 300);
 
       // Send all vehicles in a single request
       const res = await fetch(`${API_URL}/api/vehicles/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ vehicles }),
+        body: JSON.stringify({ vehicles: parsedVehicles }),
       });
 
       const result = await res.json();
 
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      // Delay for animation
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       if (result.success) {
-        toast.success(
-          result.message ||
-            `Successfully uploaded ${result.successCount} vehicle(s)`
-        );
+        toast.success(result.message || `Successfully uploaded vehicle(s)`);
         if (result.data?.errors && result.data.errors.length > 0) {
           toast.warning(
             `${result.data.errors.length} vehicle(s) failed. Check console for details.`
           );
-          console.error("Backend errors:", result.data.errors);
+          console.error("Bulk upload errors:", result.data.errors);
         }
         fetchVehicles(searchTerm);
         setIsBulkUploadDialogOpen(false);
+        setParsedVehicles([]);
+        setValidationErrors([]);
+        setUploadProgress(0);
       } else {
         toast.error(result.error || "Failed to upload vehicles");
-        if (result.data?.errors && result.data.errors.length > 0) {
-          console.error("Backend errors:", result.data.errors);
+        if (result.data?.errors) {
+          console.error("Bulk upload errors:", result.data.errors);
         }
       }
     } catch (error) {
-      console.error("Error processing file:", error);
-      toast.error("Error processing file. Please check the format.");
+      console.error("Error uploading vehicles:", error);
+      toast.error("An error occurred while uploading vehicles");
     } finally {
       setIsUploading(false);
-      // Reset file input
-      e.target.value = "";
+      setUploadProgress(0);
     }
   }
 
@@ -1256,7 +1317,7 @@ export default function VehiclesPage() {
                   <input
                     type="file"
                     accept=".xlsx,.xls"
-                    onChange={handleBulkUpload}
+                    onChange={handleFileSelect}
                     disabled={isUploading}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     id="bulk-upload-input"
@@ -1265,13 +1326,73 @@ export default function VehiclesPage() {
                     type="button"
                     disabled={isUploading}
                     className="w-full"
+                    variant="outline"
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {isUploading ? "Uploading..." : "Upload Excel File"}
+                    Select Excel File
                   </Button>
                 </div>
               </div>
             </div>
+
+            {/* Preview Section */}
+            {parsedVehicles.length > 0 && (
+              <div className="border border-gray-300 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  Preview ({parsedVehicles.length} vehicle{parsedVehicles.length > 1 ? 's' : ''} ready)
+                </h3>
+                <div className="max-h-48 overflow-y-auto bg-gray-50 rounded p-3">
+                  <div className="space-y-2 text-sm">
+                    {parsedVehicles.slice(0, 5).map((vehicle, idx) => (
+                      <div key={idx} className="flex justify-between items-center border-b border-gray-200 pb-2">
+                        <span className="font-medium">{vehicle.number}</span>
+                        <span className="text-gray-600">{vehicle.name}</span>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {vehicle.type}
+                        </span>
+                      </div>
+                    ))}
+                    {parsedVehicles.length > 5 && (
+                      <p className="text-gray-500 text-center pt-2">
+                        ...and {parsedVehicles.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {validationErrors.length > 0 && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                    <p className="font-semibold text-yellow-800 mb-1">
+                      {validationErrors.length} row(s) had errors:
+                    </p>
+                    <div className="max-h-24 overflow-y-auto text-yellow-700">
+                      {validationErrors.slice(0, 3).map((err, idx) => (
+                        <p key={idx} className="text-xs">• {err}</p>
+                      ))}
+                      {validationErrors.length > 3 && (
+                        <p className="text-xs italic">...and {validationErrors.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {isUploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Uploading vehicles...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="bg-gray-50 rounded-lg p-4">
               <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
@@ -1322,11 +1443,26 @@ export default function VehiclesPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsBulkUploadDialogOpen(false)}
+              onClick={() => {
+                setIsBulkUploadDialogOpen(false);
+                setParsedVehicles([]);
+                setValidationErrors([]);
+                setUploadProgress(0);
+              }}
               disabled={isUploading}
             >
               Close
             </Button>
+            {parsedVehicles.length > 0 && (
+              <Button
+                type="button"
+                onClick={handleBulkUploadSubmit}
+                disabled={isUploading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isUploading ? "Uploading..." : `Upload ${parsedVehicles.length} Vehicle${parsedVehicles.length > 1 ? 's' : ''}`}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
