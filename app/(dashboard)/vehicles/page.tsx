@@ -1221,11 +1221,11 @@ export default function VehiclesPage() {
         open={isBulkUploadDialogOpen}
         onOpenChange={setIsBulkUploadDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Bulk Upload Vehicles</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
+          <div className="space-y-6 overflow-y-auto flex-1 pr-2">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-900 mb-2">
                 Instructions:

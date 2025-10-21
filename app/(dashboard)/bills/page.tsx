@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Calendar, Users, UserCheck } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
@@ -47,10 +47,14 @@ interface Employee {
 export default function BillsPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterAgent, setFilterAgent] = useState<string>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [viewMode, setViewMode] = useState<"all" | "agents">("all");
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [formData, setFormData] = useState({
@@ -67,41 +71,77 @@ export default function BillsPage() {
     id: string | null;
   }>({ open: false, id: null });
 
+  // Initial load
   useEffect(() => {
     fetchBills();
     fetchEmployees();
   }, []);
 
+  // Debounced search and filter effect
   useEffect(() => {
-    let filtered = bills;
+    const delayDebounceFn = setTimeout(() => {
+      fetchBills();
+    }, 500); // 500ms delay after user stops typing
 
-    if (searchTerm) {
-      filtered = filtered.filter((b) =>
-        b.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterType !== "all") {
-      filtered = filtered.filter((b) => b.type === filterType);
-    }
-
-    setFilteredBills(filtered);
-  }, [searchTerm, filterType, bills]);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, filterType, filterAgent, startDate, endDate, viewMode]);
 
   async function fetchBills() {
     try {
-      setLoading(true);
-      const res = await fetch(`${API_URL}/api/bills`, {
+      // Only show searching spinner if there are filters applied
+      if (searchTerm || filterType !== "all" || filterAgent !== "all" || startDate || endDate) {
+        setSearching(true);
+      } else {
+        setLoading(true);
+      }
+
+      // Build query parameters
+      const params = new URLSearchParams();
+
+      // Add agentWise filter when in agents view mode
+      if (viewMode === "agents") {
+        params.append("agentWise", "true");
+      }
+
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
+
+      if (filterType !== "all") {
+        params.append("type", filterType);
+      }
+
+      // Add specific employee filter
+      if (filterAgent !== "all") {
+        params.append("employeeId", filterAgent);
+      }
+
+      if (startDate) {
+        params.append("startDate", startDate);
+      }
+
+      if (endDate) {
+        params.append("endDate", endDate);
+      }
+
+      const queryString = params.toString();
+      const url = `${API_URL}/api/bills${queryString ? `?${queryString}` : ""}`;
+
+      const res = await fetch(url, {
         credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
         setBills(data.data);
+      } else {
+        toast.error("Failed to fetch bills");
       }
     } catch (error) {
       console.error("Error fetching bills:", error);
+      toast.error("Error fetching bills");
     } finally {
       setLoading(false);
+      setSearching(false);
     }
   }
 
@@ -255,9 +295,9 @@ export default function BillsPage() {
     return <Badge variant={variant}>{status}</Badge>;
   }
 
-  // Calculate totals from filtered bills
-  const totalAmount = filteredBills.reduce((sum, bill) => sum + bill.totalAmount, 0);
-  const totalPaid = filteredBills.reduce((sum, bill) => sum + bill.paidAmount, 0);
+  // Calculate totals from bills
+  const totalAmount = bills.reduce((sum, bill) => sum + bill.totalAmount, 0);
+  const totalPaid = bills.reduce((sum, bill) => sum + bill.paidAmount, 0);
   const totalDues = totalAmount - totalPaid;
 
   if (loading) {
@@ -267,11 +307,38 @@ export default function BillsPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Income & Expense</h1>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Transaction
-        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Income & Expense</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {viewMode === "agents" ? "Agent transactions only" : "All transactions"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === "agents" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("agents")}
+              className="rounded-none border-0"
+            >
+              <UserCheck className="mr-2 h-4 w-4" />
+              Agents Only
+            </Button>
+            <Button
+              variant={viewMode === "all" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("all")}
+              className="rounded-none border-0"
+            >
+              <Users className="mr-2 h-4 w-4" />
+              All Bills
+            </Button>
+          </div>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Transaction
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -313,26 +380,126 @@ export default function BillsPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search transactions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <div className="space-y-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search transactions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+            {searching && (
+              <div className="absolute right-3 top-3">
+                <LoadingSpinner />
+              </div>
+            )}
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Transactions</SelectItem>
+              <SelectItem value="income">Income</SelectItem>
+              <SelectItem value="expense">Expense</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterAgent} onValueChange={setFilterAgent}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Agents</SelectItem>
+              {employees.map((emp) => (
+                <SelectItem key={emp._id} value={emp._id}>
+                  {emp.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Transactions</SelectItem>
-            <SelectItem value="income">Income</SelectItem>
-            <SelectItem value="expense">Expense</SelectItem>
-          </SelectContent>
-        </Select>
+
+        {/* Date Range Filter */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="startDate" className="text-sm text-gray-600 mb-1">
+              Start Date
+            </Label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="endDate" className="text-sm text-gray-600 mb-1">
+              End Date
+            </Label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Active Filters Display */}
+        {(searchTerm || filterType !== "all" || filterAgent !== "all" || startDate || endDate) && (
+          <div className="flex flex-wrap gap-2 items-center text-xs">
+            <span className="text-gray-500 font-medium">Active Filters:</span>
+            {searchTerm && (
+              <Badge variant="secondary" className="gap-1">
+                Search: {searchTerm}
+              </Badge>
+            )}
+            {filterType !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                Type: {filterType}
+              </Badge>
+            )}
+            {filterAgent !== "all" && (
+              <Badge variant="secondary" className="gap-1">
+                Agent: {employees.find(e => e._id === filterAgent)?.name || "Unknown"}
+              </Badge>
+            )}
+            {startDate && (
+              <Badge variant="secondary" className="gap-1">
+                From: {new Date(startDate).toLocaleDateString()}
+              </Badge>
+            )}
+            {endDate && (
+              <Badge variant="secondary" className="gap-1">
+                To: {new Date(endDate).toLocaleDateString()}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("");
+                setFilterType("all");
+                setFilterAgent("all");
+                setStartDate("");
+                setEndDate("");
+              }}
+              className="h-6 px-2 text-xs"
+            >
+              Clear All
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
@@ -369,7 +536,7 @@ export default function BillsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredBills.map((bill) => (
+            {bills.map((bill) => (
               <tr key={bill._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {bill.name}
@@ -417,8 +584,14 @@ export default function BillsPage() {
             ))}
           </tbody>
         </table>
-        {filteredBills.length === 0 && (
-          <div className="text-center py-12 text-gray-500">No transactions found</div>
+        {bills.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            {searchTerm || filterType !== "all" || startDate || endDate
+              ? "No transactions found matching your filters"
+              : viewMode === "agents"
+              ? "No agent transactions found"
+              : "No transactions found"}
+          </div>
         )}
       </div>
 
