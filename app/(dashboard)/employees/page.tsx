@@ -204,7 +204,7 @@ export default function EmployeesPage() {
 
   async function fetchVehicles() {
     try {
-      const res = await apiRequest("/api/vehicles");
+      const res = await apiRequest("/api/vehicles?limit=10000");
       const data = await res.json();
       if (data.success) {
         setVehicles(data.data);
