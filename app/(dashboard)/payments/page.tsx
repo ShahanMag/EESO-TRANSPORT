@@ -67,6 +67,10 @@ export default function PaymentsPage() {
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [summary, setSummary] = useState({
+    currentPage: { totalAmount: 0, paidAmount: 0, dueAmount: 0 },
+    total: { totalAmount: 0, paidAmount: 0, dueAmount: 0 },
+  });
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -204,6 +208,11 @@ export default function PaymentsPage() {
             totalItems: paymentsData.pagination.total,
             itemsPerPage: paymentsData.pagination.limit,
           });
+        }
+
+        // Update summary state
+        if (paymentsData.summary) {
+          setSummary(paymentsData.summary);
         }
 
         // Group installments by paymentId for faster lookup
@@ -512,36 +521,36 @@ export default function PaymentsPage() {
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
-              Total Amount
+              Total Amount (All)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-900">
-              {formatCurrency(totalAmount)}
+              {formatCurrency(summary.total.totalAmount)}
             </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
-              Total Paid
+              Total Paid (All)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700">
-              {formatCurrency(totalPaid)}
+              {formatCurrency(summary.total.paidAmount)}
             </div>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-red-700">
-              Total Dues
+              Total Dues (All)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700">
-              {formatCurrency(totalDues)}
+              {formatCurrency(summary.total.dueAmount)}
             </div>
           </CardContent>
         </Card>
