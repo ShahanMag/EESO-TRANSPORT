@@ -41,38 +41,18 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
 import { apiRequest } from "@/lib/api-config";
+import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
+import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
-interface Employee {
-  _id: string;
-  name: string;
-  iqamaId: string;
-  phone?: string;
-  type: "employee" | "agent";
-  joinDate?: string;
-  imageUrls?: string[];
-}
-
-interface Vehicle {
-  _id: string;
-  number: string;
-  name: string;
-  employeeId?: string | { _id: string; name: string; type: string } | null;
-}
-
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const { employees: contextEmployees, loading: contextLoading, refetchEmployees, pagination: contextPagination, goToPage, setItemsPerPage } = useEmployees();
+  const { vehicles: contextVehicles } = useVehicles();
+
+  // Local state for search and filters only
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 25,
-  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -108,110 +88,12 @@ export default function EmployeesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
 
-  // Initial load - fetch immediately
-  useEffect(() => {
-    fetchEmployees();
-    fetchVehicles();
-  }, []);
-
-  // Debounced search effect - only for search
-  useEffect(() => {
-    if (searchTerm === "") return; // Skip on empty search (handled by initial load)
-
-    const delayDebounceFn = setTimeout(() => {
-      fetchEmployees(searchTerm, 1); // Reset to page 1 on search
-    }, 500); // 500ms delay after user stops typing
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
-  // Refetch when terminated filter changes
-  useEffect(() => {
-    fetchEmployees(searchTerm, 1, pagination.itemsPerPage, showTerminated, typeFilter);
-  }, [showTerminated]);
-
-  // Refetch when type filter changes
-  useEffect(() => {
-    fetchEmployees(searchTerm, 1, pagination.itemsPerPage, showTerminated, typeFilter);
-  }, [typeFilter]);
-
   function handlePageChange(page: number) {
-    fetchEmployees(searchTerm, page, pagination.itemsPerPage, showTerminated, typeFilter);
+    goToPage(page);
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchEmployees(searchTerm, 1, limit, showTerminated, typeFilter); // Reset to page 1 when changing items per page
-  }
-
-  async function fetchEmployees(
-    search = "",
-    page = pagination.currentPage,
-    limit = pagination.itemsPerPage,
-    terminated = showTerminated,
-    type = typeFilter
-  ) {
-    try {
-      if (search) {
-        setSearching(true);
-      } else {
-        setLoading(true);
-      }
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (search) {
-        params.append("search", search);
-      }
-
-      if (type !== "all") {
-        params.append("type", type);
-      }
-
-      // Only add terminated parameter when explicitly showing terminated employees
-      if (terminated) {
-        params.append("terminated", "true");
-      }
-
-      const url = `/api/employees?${params.toString()}`;
-
-      const res = await apiRequest(url);
-      const data = await res.json();
-
-      if (data.success) {
-        setEmployees(data.data);
-        if (data.pagination) {
-          setPagination({
-            currentPage: data.pagination.page,
-            totalPages: data.pagination.totalPages,
-            totalItems: data.pagination.total,
-            itemsPerPage: data.pagination.limit,
-          });
-        }
-      } else {
-        toast.error("Failed to fetch employees");
-      }
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      toast.error("Error fetching employees");
-    } finally {
-      setLoading(false);
-      setSearching(false);
-    }
-  }
-
-  async function fetchVehicles() {
-    try {
-      const res = await apiRequest("/api/vehicles?limit=10000");
-      const data = await res.json();
-      if (data.success) {
-        setVehicles(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-    }
+    setItemsPerPage(limit);
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -298,8 +180,14 @@ export default function EmployeesPage() {
         // Update vehicle assignments
         // First, unassign all vehicles that were previously assigned to this employee
         if (editingEmployee) {
-          const previousVehicles = vehicles.filter(
-            (v) => v.employeeId === editingEmployee._id
+          const previousVehicles = contextVehicles.filter(
+            (v) => {
+              const empId =
+                typeof v.employeeId === "object" && v.employeeId !== null
+                  ? (v.employeeId as any)._id
+                  : v.employeeId;
+              return empId === editingEmployee._id;
+            }
           );
           const vehiclesToUnassign = previousVehicles.filter(
             (v) => !selectedVehicles.includes(v._id)
@@ -321,7 +209,7 @@ export default function EmployeesPage() {
 
         // Assign selected vehicles to this employee
         for (const vehicleId of selectedVehicles) {
-          const vehicle = vehicles.find((v) => v._id === vehicleId);
+          const vehicle = contextVehicles.find((v) => v._id === vehicleId);
           if (vehicle) {
             // Extract only the necessary fields to avoid passing populated objects
             const empIdValue =
@@ -348,8 +236,7 @@ export default function EmployeesPage() {
             ? "Employee updated successfully"
             : "Employee created successfully"
         );
-        fetchEmployees(searchTerm);
-        fetchVehicles();
+        refetchEmployees();
         handleCloseDialog();
       } else {
         setErrors({ submit: data.error });
@@ -388,7 +275,7 @@ export default function EmployeesPage() {
 
       if (data.success) {
         toast.success("Employee deleted successfully");
-        fetchEmployees(searchTerm);
+        refetchEmployees();
         setIsDeleteDialogOpen(false);
         setDeletingEmployee(null);
       } else {
@@ -411,7 +298,7 @@ export default function EmployeesPage() {
 
     try {
       // Get vehicles assigned to this employee
-      const assignedVehicles = vehicles.filter((v) => {
+      const assignedVehicles = contextVehicles.filter((v) => {
         const empId =
           typeof v.employeeId === "object" && v.employeeId !== null
             ? (v.employeeId as any)._id
@@ -452,8 +339,7 @@ export default function EmployeesPage() {
         toast.success(
           `Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`
         );
-        fetchEmployees(searchTerm);
-        fetchVehicles();
+        refetchEmployees();
         setIsTerminateDialogOpen(false);
         setTerminatingEmployee(null);
         setTerminateFormData({
@@ -512,7 +398,7 @@ export default function EmployeesPage() {
           setImageUrls(fullEmployee.imageUrls || []);
           setImageFile(null); // Reset image file when editing existing employee
           // Load vehicles assigned to this employee
-          const assignedVehicles = vehicles
+          const assignedVehicles = contextVehicles
             .filter((v) => {
               // Handle both populated and non-populated employeeId
               const empId =
@@ -795,7 +681,7 @@ export default function EmployeesPage() {
           );
           console.error("Bulk upload errors:", result.data.errors);
         }
-        fetchEmployees(searchTerm);
+        refetchEmployees();
         setIsBulkUploadDialogOpen(false);
         setParsedEmployees([]);
         setValidationErrors([]);
@@ -815,9 +701,13 @@ export default function EmployeesPage() {
     }
   }
 
-  if (loading) {
+  if (contextLoading) {
     return <LoadingSpinner fullScreen />;
   }
+
+  // Calculate summary stats
+  const totalEmployees = contextPagination.totalItems;
+  const displayEmployees = contextEmployees;
 
   return (
     <div>
@@ -842,7 +732,7 @@ export default function EmployeesPage() {
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-blue-700">Total Employees</p>
           <p className="text-2xl font-bold text-blue-900">
-            {pagination.totalItems}
+            {totalEmployees}
           </p>
         </div>
         {/* <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
@@ -854,7 +744,7 @@ export default function EmployeesPage() {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-purple-700">Page</p>
           <p className="text-2xl font-bold text-purple-900">
-            {pagination.currentPage} / {pagination.totalPages}
+            {contextPagination.currentPage} / {contextPagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
@@ -862,7 +752,7 @@ export default function EmployeesPage() {
             {searchTerm ? "Search Results" : "Viewing"}
           </p>
           <p className="text-2xl font-bold text-amber-900">
-            {employees.length}
+            {displayEmployees.length}
           </p>
         </div>
       </div>
@@ -994,9 +884,9 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {employees.map((employee, i) => {
+            {displayEmployees.map((employee, i) => {
               // Get vehicles assigned to this employee
-              const assignedVehicles = vehicles
+              const assignedVehicles = contextVehicles
                 .filter((v) => {
                   const empId =
                     typeof v.employeeId === "object" && v.employeeId !== null
@@ -1009,7 +899,7 @@ export default function EmployeesPage() {
 
               return (
                 <tr key={employee._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{i + 1}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{(contextPagination.currentPage - 1) * contextPagination.itemsPerPage + i + 1}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {employee.imageUrls && employee.imageUrls.length > 0 ? (
                       <Image
@@ -1045,9 +935,17 @@ export default function EmployeesPage() {
                       {employee.type === "agent" ? "Agent" : "Employee"}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {assignedVehicles || (
-                      <span className="text-gray-400 italic">No vehicles</span>
+                  <td className="px-6 py-4 text-xs text-gray-500">
+                    {assignedVehicles ? (
+                      <div className="space-y-1">
+                        {assignedVehicles.split(", ").map((vehicle, idx) => (
+                          <div key={idx} className="text-xs bg-blue-50 px-2 py-1 rounded text-blue-700 font-medium">
+                            {vehicle}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">No vehicles</span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1089,7 +987,7 @@ export default function EmployeesPage() {
             })}
           </tbody>
         </table>
-        {employees.length === 0 && (
+        {displayEmployees.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             {searchTerm
               ? "No employees found matching your search"
@@ -1100,10 +998,10 @@ export default function EmployeesPage() {
         {/* Pagination */}
       </div>
       <Pagination
-        currentPage={pagination.currentPage}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        itemsPerPage={pagination.itemsPerPage}
+        currentPage={contextPagination.currentPage}
+        totalPages={contextPagination.totalPages}
+        totalItems={contextPagination.totalItems}
+        itemsPerPage={contextPagination.itemsPerPage}
         onPageChange={handlePageChange}
         onItemsPerPageChange={handleItemsPerPageChange}
       />
@@ -1263,14 +1161,14 @@ export default function EmployeesPage() {
                   </div>
                 </div>
                 <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
-                  {vehicles.length === 0 ? (
+                  {contextVehicles.length === 0 ? (
                     <p className="text-sm text-gray-500">
                       No vehicles available
                     </p>
                   ) : (
                     (() => {
                       // Filter vehicles based on search term
-                      const filteredVehicles = vehicles.filter((vehicle) => {
+                      const filteredVehicles = contextVehicles.filter((vehicle) => {
                         const searchLower = vehicleSearchTerm.toLowerCase();
                         return (
                           vehicle.number.toLowerCase().includes(searchLower) ||
@@ -1278,7 +1176,15 @@ export default function EmployeesPage() {
                         );
                       });
 
-                      if (filteredVehicles.length === 0) {
+                      // Sort vehicles so checked ones appear at top
+                      const sortedVehicles = [...filteredVehicles].sort((a, b) => {
+                        const aIsChecked = selectedVehicles.includes(a._id);
+                        const bIsChecked = selectedVehicles.includes(b._id);
+                        if (aIsChecked === bIsChecked) return 0;
+                        return aIsChecked ? -1 : 1;
+                      });
+
+                      if (sortedVehicles.length === 0) {
                         return (
                           <p className="text-sm text-gray-500 italic">
                             No vehicles found matching &quot;{vehicleSearchTerm}&quot;
@@ -1286,7 +1192,7 @@ export default function EmployeesPage() {
                         );
                       }
 
-                      return filteredVehicles.map((vehicle) => (
+                      return sortedVehicles.map((vehicle) => (
                         <div
                           key={vehicle._id}
                           className="flex items-center space-x-2"
@@ -1438,7 +1344,7 @@ export default function EmployeesPage() {
                   <Label className="text-gray-600">Assigned Vehicles</Label>
                   <p className="text-lg font-medium">
                     {(() => {
-                      const assignedVehicles = vehicles
+                      const assignedVehicles = contextVehicles
                         .filter((v) => {
                           const empId =
                             typeof v.employeeId === "object" && v.employeeId !== null
@@ -1671,7 +1577,7 @@ export default function EmployeesPage() {
                     <strong>Warning:</strong> You are about to terminate{" "}
                     <strong>{terminatingEmployee.name}</strong>.
                   </p>
-                  {vehicles.filter((v) => {
+                  {contextVehicles.filter((v) => {
                     const empId =
                       typeof v.employeeId === "object" && v.employeeId !== null
                         ? (v.employeeId as any)._id
@@ -1681,7 +1587,7 @@ export default function EmployeesPage() {
                     <p className="text-sm text-yellow-800 mt-2">
                       <strong>
                         {
-                          vehicles.filter((v) => {
+                          contextVehicles.filter((v) => {
                             const empId =
                               typeof v.employeeId === "object" &&
                               v.employeeId !== null

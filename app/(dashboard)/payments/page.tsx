@@ -26,6 +26,7 @@ import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/s
 import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
+import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -51,12 +52,6 @@ interface PaymentWithInstallments extends Payment {
   dues: number;
 }
 
-interface Vehicle {
-  _id: string;
-  number: string;
-  name: string;
-}
-
 interface VehiclePaymentGroup {
   vehicle: Vehicle;
   payments: PaymentWithInstallments[];
@@ -66,8 +61,9 @@ interface VehiclePaymentGroup {
 }
 
 export default function PaymentsPage() {
+  const { vehicles: contextVehicles } = useVehicles();
+
   const [payments, setPayments] = useState<PaymentWithInstallments[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -90,7 +86,6 @@ export default function PaymentsPage() {
     id: string | null;
   }>({ open: false, type: null, id: null });
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
-  const [searchedVehicles, setSearchedVehicles] = useState<Vehicle[]>([]);
   const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
 
   const [paymentFormData, setPaymentFormData] = useState({
@@ -110,20 +105,15 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchPayments();
-    fetchVehicles();
   }, []);
 
-  // Debounced vehicle search effect
-  useEffect(() => {
-    // Don't search when dialog is closed or when editing a payment
-    if (!isPaymentDialogOpen || editingPayment) return;
-
-    const delayDebounceFn = setTimeout(() => {
-      searchVehicles(vehicleSearchTerm);
-    }, 300); // 300ms delay after user stops typing
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [vehicleSearchTerm, isPaymentDialogOpen, editingPayment]);
+  // Filter vehicles from context based on search term
+  const searchedVehicles = vehicleSearchTerm.trim() === ""
+    ? contextVehicles
+    : contextVehicles.filter((v) =>
+        v.number.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) ||
+        v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase())
+      );
 
   useEffect(() => {
     // Group payments by vehicle
@@ -137,11 +127,15 @@ export default function PaymentsPage() {
 
       if (!groups.has(vehicleId)) {
         // Create new group with vehicle info from the payment's populated vehicleId
+        // Get full vehicle from context if available
+        const fullVehicle = contextVehicles.find((v) => v._id === vehicleId);
         groups.set(vehicleId, {
-          vehicle: {
+          vehicle: fullVehicle || {
             _id: payment.vehicleId._id,
             number: payment.vehicleId.number,
             name: payment.vehicleId.name,
+            type: "private",
+            employeeId: null,
           },
           payments: [],
           totalAmount: 0,
@@ -242,44 +236,6 @@ export default function PaymentsPage() {
     }
   }
 
-  async function fetchVehicles() {
-    try {
-      const res = await fetch(`${API_URL}/api/vehicles`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        setVehicles(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-    }
-  }
-
-  async function searchVehicles(search: string) {
-    try {
-      setIsSearchingVehicles(true);
-      const params = new URLSearchParams({
-        limit: "50", // Get more results for search
-      });
-
-      if (search) {
-        params.append("search", search);
-      }
-
-      const res = await fetch(`${API_URL}/api/vehicles?${params.toString()}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSearchedVehicles(data.data);
-      }
-    } catch (error) {
-      console.error("Error searching vehicles:", error);
-    } finally {
-      setIsSearchingVehicles(false);
-    }
-  }
 
   function validatePaymentForm() {
     const newErrors: Record<string, string> = {};
@@ -453,16 +409,6 @@ export default function PaymentsPage() {
         date: new Date(payment.date).toISOString().split("T")[0],
         remarks: payment.remarks || "",
       });
-      // For editing, set the current vehicle in searchedVehicles so it shows up
-      if (payment.vehicleId) {
-        setSearchedVehicles([
-          {
-            _id: payment.vehicleId._id,
-            number: payment.vehicleId.number,
-            name: payment.vehicleId.name,
-          },
-        ]);
-      }
     } else {
       setEditingPayment(null);
       setPaymentFormData({
@@ -472,8 +418,6 @@ export default function PaymentsPage() {
         remarks: "",
       });
       setVehicleSearchTerm(""); // Reset search term
-      setSearchedVehicles([]); // Reset searched vehicles
-      searchVehicles(""); // Load initial vehicles
     }
     setErrors({});
     setIsPaymentDialogOpen(true);
@@ -483,7 +427,6 @@ export default function PaymentsPage() {
     setIsPaymentDialogOpen(false);
     setEditingPayment(null);
     setVehicleSearchTerm("");
-    setSearchedVehicles([]);
     setErrors({});
   }
 

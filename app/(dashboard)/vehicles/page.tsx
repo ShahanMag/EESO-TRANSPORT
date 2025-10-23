@@ -30,42 +30,19 @@ import { Pagination } from "@/components/ui/pagination";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { exportToExcel } from "@/lib/excel-utils";
+import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
+import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
-interface Vehicle {
-  _id: string;
-  number: string;
-  name: string;
-  serialNumber?: string;
-  type: "private" | "public";
-  vehicleModel?: string;
-  vehicleAmount?: number;
-  startDate?: string;
-  contractExpiry?: string;
-  description?: string;
-  employeeId: { _id: string; name: string; type: string } | null;
-}
-
-interface Employee {
-  _id: string;
-  name: string;
-  type: string;
-}
-
 export default function VehiclesPage() {
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage } = useVehicles();
+  const { employees: contextEmployees } = useEmployees();
+
+  // Local state for search and filters only
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0,
-    itemsPerPage: 25,
-  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(
@@ -98,107 +75,12 @@ export default function VehiclesPage() {
     terminationReason: "",
   });
 
-  // Initial load - fetch immediately
-  useEffect(() => {
-    fetchVehicles();
-    fetchEmployees();
-  }, []);
-
-  // Debounced search effect - only for search
-  useEffect(() => {
-    if (searchTerm === "") return; // Skip on empty search (handled by initial load)
-
-    const delayDebounceFn = setTimeout(() => {
-      fetchVehicles(searchTerm, 1); // Reset to page 1 on search
-    }, 500); // 500ms delay after user stops typing
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm]);
-
-  // Refetch when terminated filter changes
-  useEffect(() => {
-    fetchVehicles(searchTerm, 1, pagination.itemsPerPage, showTerminated);
-  }, [showTerminated]);
-
   function handlePageChange(page: number) {
-    fetchVehicles(searchTerm, page, pagination.itemsPerPage, showTerminated);
+    goToPage(page);
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchVehicles(searchTerm, 1, limit, showTerminated); // Reset to page 1 when changing items per page
-  }
-
-  async function fetchVehicles(
-    search = "",
-    page = pagination.currentPage,
-    limit = pagination.itemsPerPage,
-    terminated = showTerminated
-  ) {
-    try {
-      if (search) {
-        setSearching(true);
-      } else {
-        setLoading(true);
-      }
-
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (search) {
-        params.append("search", search);
-      }
-
-      // Only add terminated parameter when explicitly showing terminated vehicles
-      if (terminated) {
-        params.append("terminated", "true");
-      }
-
-      const url = `/api/vehicles?${params.toString()}`;
-
-      const res = await fetch(`${API_URL}${url}`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setVehicles(data.data);
-        if (data.pagination) {
-          setPagination({
-            currentPage: data.pagination.page,
-            totalPages: data.pagination.totalPages,
-            totalItems: data.pagination.total,
-            itemsPerPage: data.pagination.limit,
-          });
-        }
-      } else {
-        toast.error("Failed to fetch vehicles");
-      }
-    } catch (error) {
-      console.error("Error fetching vehicles:", error);
-      toast.error("Error fetching vehicles");
-    } finally {
-      setLoading(false);
-      setSearching(false);
-    }
-  }
-
-  async function fetchEmployees() {
-    try {
-      const res = await fetch(`${API_URL}/api/employees`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.success) {
-        setEmployees(data.data);
-      } else {
-        toast.error("Failed to fetch employees");
-      }
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      toast.error("Error fetching employees");
-    }
+    setItemsPerPage(limit);
   }
 
   function validateForm() {
@@ -261,7 +143,7 @@ export default function VehiclesPage() {
             ? "Vehicle updated successfully"
             : "Vehicle created successfully"
         );
-        fetchVehicles(searchTerm);
+        refetchVehicles();
         handleCloseDialog();
       } else {
         toast.error(data.error || "Failed to save vehicle");
@@ -291,7 +173,7 @@ export default function VehiclesPage() {
 
       if (data.success) {
         toast.success("Vehicle deleted successfully");
-        fetchVehicles(searchTerm);
+        refetchVehicles();
       } else {
         toast.error(data.error || "Failed to delete vehicle");
       }
@@ -413,7 +295,7 @@ export default function VehiclesPage() {
 
       if (data.success) {
         toast.success("Vehicle terminated successfully");
-        fetchVehicles(searchTerm);
+        refetchVehicles();
         setIsTerminateDialogOpen(false);
         setTerminatingVehicle(null);
         setTerminateFormData({
@@ -741,7 +623,7 @@ export default function VehiclesPage() {
           );
           console.error("Bulk upload errors:", result.data.errors);
         }
-        fetchVehicles(searchTerm);
+        refetchVehicles();
         setIsBulkUploadDialogOpen(false);
         setParsedVehicles([]);
         setValidationErrors([]);
@@ -761,9 +643,13 @@ export default function VehiclesPage() {
     }
   }
 
-  if (loading) {
+  if (contextLoading) {
     return <LoadingSpinner fullScreen />;
   }
+
+  // Calculate summary stats
+  const totalVehicles = contextPagination.totalItems;
+  const displayVehicles = contextVehicles;
 
   return (
     <div>
@@ -788,13 +674,13 @@ export default function VehiclesPage() {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-purple-700">Total Vehicles</p>
           <p className="text-2xl font-bold text-purple-900">
-            {pagination.totalItems}
+            {totalVehicles}
           </p>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-green-700">Page</p>
           <p className="text-2xl font-bold text-green-900">
-            {pagination.currentPage} / {pagination.totalPages}
+            {contextPagination.currentPage} / {contextPagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
@@ -802,7 +688,7 @@ export default function VehiclesPage() {
             {searchTerm ? "Search Results" : "Viewing"}
           </p>
           <p className="text-2xl font-bold text-amber-900">
-            {vehicles.length}
+            {displayVehicles.length}
           </p>
         </div>
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
@@ -810,7 +696,7 @@ export default function VehiclesPage() {
             Assigned / Unassigned
           </p>
           <p className="text-2xl font-bold text-blue-900">
-            {vehicles.filter((v) => v.employeeId).length} / {vehicles.filter((v) => !v.employeeId).length}
+            {contextVehicles.filter((v) => v.employeeId).length} / {contextVehicles.filter((v) => !v.employeeId).length}
           </p>
         </div>
       </div>
@@ -897,14 +783,14 @@ export default function VehiclesPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {vehicles.map((vehicle, index) => (
+            {displayVehicles.map((vehicle, index) => (
               <tr
                 key={vehicle._id}
                 className="hover:bg-gray-50 cursor-pointer"
                 onClick={() => router.push(`/vehicles/${vehicle._id}`)}
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {(pagination.currentPage - 1) * pagination.itemsPerPage + index + 1}
+                  {(contextPagination.currentPage - 1) * contextPagination.itemsPerPage + index + 1}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {vehicle.number}
@@ -991,7 +877,7 @@ export default function VehiclesPage() {
             ))}
           </tbody>
         </table>
-        {vehicles.length === 0 && (
+        {displayVehicles.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             {searchTerm
               ? "No vehicles found matching your search"
@@ -1002,14 +888,14 @@ export default function VehiclesPage() {
 
       {/* Mobile Card View */}
       <div className="md:hidden space-y-4">
-        {vehicles.length === 0 ? (
+        {displayVehicles.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
             {searchTerm
               ? "No vehicles found matching your search"
               : "No vehicles found"}
           </div>
         ) : (
-          vehicles.map((vehicle) => (
+          displayVehicles.map((vehicle) => (
             <div
               key={vehicle._id}
               className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
@@ -1098,10 +984,10 @@ export default function VehiclesPage() {
 
       {/* Pagination */}
       <Pagination
-        currentPage={pagination.currentPage}
-        totalPages={pagination.totalPages}
-        totalItems={pagination.totalItems}
-        itemsPerPage={pagination.itemsPerPage}
+        currentPage={contextPagination.currentPage}
+        totalPages={contextPagination.totalPages}
+        totalItems={contextPagination.totalItems}
+        itemsPerPage={contextPagination.itemsPerPage}
         onPageChange={handlePageChange}
         onItemsPerPageChange={handleItemsPerPageChange}
       />
@@ -1229,7 +1115,7 @@ export default function VehiclesPage() {
                 <SearchableSelect
                   options={[
                     { value: "unassigned", label: "Unassigned" },
-                    ...employees.map((emp) => ({
+                    ...contextEmployees.map((emp) => ({
                       value: emp._id,
                       label: emp.name,
                       subtitle: emp.type === "agent" ? "Agent" : "Employee",

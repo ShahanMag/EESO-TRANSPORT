@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { toast } from "sonner";
+import { useVehicles } from "@/contexts/VehicleContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
