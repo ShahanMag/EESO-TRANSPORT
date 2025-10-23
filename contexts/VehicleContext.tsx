@@ -28,10 +28,11 @@ interface VehicleContextType {
   loading: boolean;
   error: string | null;
   pagination: Pagination;
-  fetchVehicles: (page?: number, limit?: number) => Promise<void>;
+  fetchVehicles: (page?: number, limit?: number, terminated?: boolean) => Promise<void>;
   refetchVehicles: () => Promise<void>;
   goToPage: (page: number) => Promise<void>;
   setItemsPerPage: (limit: number) => Promise<void>;
+  setShowTerminated: (show: boolean) => Promise<void>;
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
@@ -48,13 +49,14 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
     totalItems: 0,
     itemsPerPage: 100,
   });
+  const [showTerminated, setShowTerminatedState] = useState(false);
 
   // Initial fetch on mount
   useEffect(() => {
-    fetchVehicles(1, 100);
+    fetchVehicles(1, 100, showTerminated);
   }, []);
 
-  async function fetchVehicles(page = 1, limit = 100) {
+  async function fetchVehicles(page = 1, limit = 100, terminated = false) {
     try {
       setLoading(true);
       setError(null);
@@ -63,6 +65,11 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
         page: page.toString(),
         limit: limit.toString(),
       });
+
+      // Add terminated filter if needed
+      if (terminated) {
+        params.append("terminated", "true");
+      }
 
       const url = `/api/vehicles?${params.toString()}`;
       const res = await fetch(`${API_URL}${url}`, {
@@ -92,15 +99,20 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function refetchVehicles() {
-    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage);
+    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated);
   }
 
   async function goToPage(page: number) {
-    await fetchVehicles(page, pagination.itemsPerPage);
+    await fetchVehicles(page, pagination.itemsPerPage, showTerminated);
   }
 
   async function setItemsPerPage(limit: number) {
-    await fetchVehicles(1, limit);
+    await fetchVehicles(1, limit, showTerminated);
+  }
+
+  async function setShowTerminated(show: boolean) {
+    setShowTerminatedState(show);
+    await fetchVehicles(1, pagination.itemsPerPage, show);
   }
 
   return (
@@ -114,6 +126,7 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
         refetchVehicles,
         goToPage,
         setItemsPerPage,
+        setShowTerminated,
       }}
     >
       {children}

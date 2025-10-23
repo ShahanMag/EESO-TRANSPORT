@@ -37,7 +37,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage } = useVehicles();
+  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated } = useVehicles();
   const { employees: contextEmployees } = useEmployees();
 
   // Local state for search and filters only
@@ -67,7 +67,7 @@ export default function VehiclesPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [parsedVehicles, setParsedVehicles] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [showTerminated, setShowTerminated] = useState(false);
+  const [showTerminatedFilter, setShowTerminatedFilter] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(null);
   const [terminateFormData, setTerminateFormData] = useState({
@@ -719,12 +719,15 @@ export default function VehiclesPage() {
             )}
           </div>
           <Button
-            variant={showTerminated ? "destructive" : "outline"}
-            onClick={() => setShowTerminated(!showTerminated)}
+            variant={showTerminatedFilter ? "destructive" : "outline"}
+            onClick={() => {
+              setShowTerminatedFilter(!showTerminatedFilter);
+              setShowTerminated(!showTerminatedFilter);
+            }}
             className="whitespace-nowrap"
           >
             <XCircle className="mr-2 h-4 w-4" />
-            {showTerminated ? "Showing Terminated" : "Show Terminated"}
+            {showTerminatedFilter ? "Showing Terminated" : "Show Terminated"}
           </Button>
         </div>
         {searchTerm && (
@@ -738,7 +741,7 @@ export default function VehiclesPage() {
             </span>
           </div>
         )}
-        {showTerminated && (
+        {showTerminatedFilter && (
           <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded border border-orange-200">
             Showing terminated vehicles only
           </div>
