@@ -707,7 +707,32 @@ export default function EmployeesPage() {
 
   // Calculate summary stats
   const totalEmployees = contextPagination.totalItems;
-  const displayEmployees = contextEmployees;
+  const displayEmployees = contextEmployees.filter((emp) => {
+    // Apply type filter
+    if (typeFilter !== "all" && emp.type !== typeFilter) {
+      return false;
+    }
+
+    // Apply terminated filter
+    if (showTerminated && !emp.terminationDate) {
+      return false;
+    }
+    if (!showTerminated && emp.terminationDate) {
+      return false;
+    }
+
+    // Apply search term
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        emp.name.toLowerCase().includes(searchLower) ||
+        emp.iqamaId.includes(searchTerm) ||
+        emp.phone?.includes(searchTerm)
+      );
+    }
+
+    return true;
+  });
 
   return (
     <div>
