@@ -726,7 +726,7 @@ export default function EmployeesPage() {
       const searchLower = searchTerm.toLowerCase();
       return (
         emp.name.toLowerCase().includes(searchLower) ||
-        emp.iqamaId.includes(searchTerm) ||
+        emp.iqamaId?.includes(searchTerm) ||
         emp.phone?.includes(searchTerm)
       );
     }

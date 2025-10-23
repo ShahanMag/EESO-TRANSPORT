@@ -11,6 +11,7 @@ export interface Employee {
   joinDate?: string;
   image?: string;
   imageUrls?: string[];
+  terminationDate?: string;
 }
 
 interface Pagination {
