@@ -140,50 +140,8 @@ export default function IncomeExpenseReportsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="dateFrom">From Date</Label>
-              <Input
-                id="dateFrom"
-                type="date"
-                value={dateRange.from}
-                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="dateTo">To Date</Label>
-              <Input
-                id="dateTo"
-                type="date"
-                value={dateRange.to}
-                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="filterType">Type</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Transactions</SelectItem>
-                  <SelectItem value="income">Income Only</SelectItem>
-                  <SelectItem value="expense">Expense Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
@@ -253,33 +211,49 @@ export default function IncomeExpenseReportsPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700">
-              Income Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-900">
-              {filteredBills.filter((b) => b.type === "income").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">
-              Expense Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-900">
-              {filteredBills.filter((b) => b.type === "expense").length}
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="dateFrom">From Date</Label>
+              <Input
+                id="dateFrom"
+                type="date"
+                value={dateRange.from}
+                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dateTo">To Date</Label>
+              <Input
+                id="dateTo"
+                type="date"
+                value={dateRange.to}
+                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="filterType">Type</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Transactions</SelectItem>
+                  <SelectItem value="income">Income Only</SelectItem>
+                  <SelectItem value="expense">Expense Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Data Table */}
       <Card>
