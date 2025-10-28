@@ -37,12 +37,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated } = useVehicles();
+  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated, setAssignedFilter } = useVehicles();
   const { employees: contextEmployees } = useEmployees();
 
   // Local state for search and filters only
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
+  const [assignedFilterValue, setAssignedFilterValue] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(
@@ -74,6 +75,17 @@ export default function VehiclesPage() {
     terminationDate: new Date().toISOString().split("T")[0],
     terminationReason: "",
   });
+
+  async function handleAssignedFilterChange(value: string) {
+    setAssignedFilterValue(value);
+    if (value === "all") {
+      await setAssignedFilter(null);
+    } else if (value === "assigned") {
+      await setAssignedFilter(true);
+    } else if (value === "unassigned") {
+      await setAssignedFilter(false);
+    }
+  }
 
   function handlePageChange(page: number) {
     goToPage(page);
@@ -718,6 +730,16 @@ export default function VehiclesPage() {
               </div>
             )}
           </div>
+          <Select value={assignedFilterValue} onValueChange={handleAssignedFilterChange}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by assignment" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vehicles</SelectItem>
+              <SelectItem value="assigned">Assigned Vehicles</SelectItem>
+              <SelectItem value="unassigned">Unassigned Vehicles</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant={showTerminatedFilter ? "destructive" : "outline"}
             onClick={() => {
@@ -739,6 +761,11 @@ export default function VehiclesPage() {
             >
               {searchTerm}
             </span>
+          </div>
+        )}
+        {assignedFilterValue !== "all" && (
+          <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded border border-blue-200">
+            Showing {assignedFilterValue === "assigned" ? "assigned" : "unassigned"} vehicles only
           </div>
         )}
         {showTerminatedFilter && (

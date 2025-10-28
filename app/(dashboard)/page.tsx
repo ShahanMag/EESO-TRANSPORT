@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     employees: 0,
     vehicles: 0,
+    unassignedVehicles: 0,
     payments: 0,
     bills: 0,
   });
@@ -79,13 +80,24 @@ console.log(recentPayments);
       const res = await apiRequest("/api/reports/dashboard");
       const result = await res.json();
 
+      // Fetch unassigned vehicles count
+      const vehiclesRes = await apiRequest("/api/vehicles?assigned=false&limit=1");
+      const vehiclesResult = await vehiclesRes.json();
+
       if (result.success) {
         const { counts, recent } = result.data;
+        let unassignedCount = 0;
+
+        // Get unassigned vehicles count from pagination
+        if (vehiclesResult.success && vehiclesResult.pagination) {
+          unassignedCount = vehiclesResult.pagination.total;
+        }
 
         // Set counts
         setStats({
           employees: counts.employees,
           vehicles: counts.vehicles,
+          unassignedVehicles: unassignedCount,
           payments: counts.payments,
           bills: counts.bills,
         });
@@ -182,12 +194,12 @@ console.log(recentPayments);
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
-              Total Vehicles
+              Unassigned Vehicles
             </CardTitle>
             <Car className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{stats.vehicles}</div>
+            <div className="text-2xl font-bold text-purple-900">{stats.unassignedVehicles}</div>
           </CardContent>
         </Card>
         <Card
@@ -196,7 +208,7 @@ console.log(recentPayments);
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
-              Payment Records
+              Unpaid Payments
             </CardTitle>
             <CreditCard className="h-4 w-4 text-green-600" />
           </CardHeader>

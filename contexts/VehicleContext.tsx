@@ -28,11 +28,12 @@ interface VehicleContextType {
   loading: boolean;
   error: string | null;
   pagination: Pagination;
-  fetchVehicles: (page?: number, limit?: number, terminated?: boolean) => Promise<void>;
+  fetchVehicles: (page?: number, limit?: number, terminated?: boolean, assigned?: boolean | null) => Promise<void>;
   refetchVehicles: () => Promise<void>;
   goToPage: (page: number) => Promise<void>;
   setItemsPerPage: (limit: number) => Promise<void>;
   setShowTerminated: (show: boolean) => Promise<void>;
+  setAssignedFilter: (assigned: boolean | null) => Promise<void>;
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
@@ -50,13 +51,14 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
     itemsPerPage: 100,
   });
   const [showTerminated, setShowTerminatedState] = useState(false);
+  const [assignedFilter, setAssignedFilterState] = useState<boolean | null>(null);
 
   // Initial fetch on mount
   useEffect(() => {
     fetchVehicles(1, 100, showTerminated);
   }, []);
 
-  async function fetchVehicles(page = 1, limit = 100, terminated = false) {
+  async function fetchVehicles(page = 1, limit = 100, terminated = false, assigned: boolean | null = null) {
     try {
       setLoading(true);
       setError(null);
@@ -69,6 +71,11 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       // Add terminated filter if needed
       if (terminated) {
         params.append("terminated", "true");
+      }
+
+      // Add assigned filter if needed
+      if (assigned !== null) {
+        params.append("assigned", assigned.toString());
       }
 
       const url = `/api/vehicles?${params.toString()}`;
@@ -99,20 +106,25 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function refetchVehicles() {
-    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated);
+    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated, assignedFilter);
   }
 
   async function goToPage(page: number) {
-    await fetchVehicles(page, pagination.itemsPerPage, showTerminated);
+    await fetchVehicles(page, pagination.itemsPerPage, showTerminated, assignedFilter);
   }
 
   async function setItemsPerPage(limit: number) {
-    await fetchVehicles(1, limit, showTerminated);
+    await fetchVehicles(1, limit, showTerminated, assignedFilter);
   }
 
   async function setShowTerminated(show: boolean) {
     setShowTerminatedState(show);
-    await fetchVehicles(1, pagination.itemsPerPage, show);
+    await fetchVehicles(1, pagination.itemsPerPage, show, assignedFilter);
+  }
+
+  async function setAssignedFilter(assigned: boolean | null) {
+    setAssignedFilterState(assigned);
+    await fetchVehicles(1, pagination.itemsPerPage, showTerminated, assigned);
   }
 
   return (
@@ -127,6 +139,7 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
         goToPage,
         setItemsPerPage,
         setShowTerminated,
+        setAssignedFilter,
       }}
     >
       {children}
