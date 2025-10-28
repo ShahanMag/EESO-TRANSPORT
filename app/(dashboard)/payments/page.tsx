@@ -91,6 +91,7 @@ export default function PaymentsPage() {
   }>({ open: false, type: null, id: null });
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
   const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid" | "partial">("all");
 
   const [paymentFormData, setPaymentFormData] = useState({
     vehicleId: "",
@@ -110,6 +111,11 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments();
   }, []);
+
+  // Refetch when status filter changes
+  useEffect(() => {
+    fetchPayments(1, pagination.itemsPerPage);
+  }, [statusFilter]);
 
   // Filter vehicles from context based on search term
   const searchedVehicles = vehicleSearchTerm.trim() === ""
@@ -158,7 +164,7 @@ export default function PaymentsPage() {
     const groupsArray = Array.from(groups.values());
     setVehicleGroups(groupsArray);
 
-    // Apply search filter
+    // Apply search filter only (status filter is now handled by API)
     const filtered = groupsArray.filter((group) =>
       group.vehicle.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       group.vehicle.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -183,6 +189,11 @@ export default function PaymentsPage() {
         page: page.toString(),
         limit: limit.toString(),
       });
+
+      // Add status filter to API call if not "all"
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
 
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
@@ -571,15 +582,30 @@ export default function PaymentsPage() {
         </Card>
       </div>
 
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search by vehicle number or name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <div className="mb-4 flex gap-3">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search by vehicle number or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        <div className="w-40">
+          <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

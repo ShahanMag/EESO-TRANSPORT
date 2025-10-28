@@ -137,7 +137,7 @@ console.log(recentPayments);
         <h1 className="text-3xl font-bold">Dashboard</h1>
 
         {/* Date Filter */}
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           <div>
             <Label htmlFor="dateFrom" className="text-xs">From</Label>
             <Input
@@ -158,7 +158,7 @@ console.log(recentPayments);
               className="w-40"
             />
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

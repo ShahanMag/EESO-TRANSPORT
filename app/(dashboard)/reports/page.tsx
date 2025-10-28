@@ -17,6 +17,7 @@ import { exportToExcel } from "@/lib/excel-utils";
 import { Download } from "lucide-react";
 import { apiRequest } from "@/lib/api-config";
 import { toast } from "sonner";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 interface Vehicle {
   _id: string;
@@ -40,11 +41,14 @@ export default function ReportsPage() {
     vehicleId: "",
     employeeId: "",
     billType: "",
+    paymentStatus: "",
   });
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
+  const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -76,6 +80,29 @@ export default function ReportsPage() {
     }
   }
 
+  async function handleVehicleSearch(searchTerm: string) {
+    setVehicleSearchTerm(searchTerm);
+    if (searchTerm.trim() === "") {
+      setVehicles([]);
+      return;
+    }
+
+    setIsSearchingVehicles(true);
+    try {
+      const res = await apiRequest(
+        `/api/vehicles?search=${encodeURIComponent(searchTerm)}&limit=100`
+      );
+      const data = await res.json();
+      if (data.success) {
+        setVehicles(data.data);
+      }
+    } catch (error) {
+      console.error("Error searching vehicles:", error);
+    } finally {
+      setIsSearchingVehicles(false);
+    }
+  }
+
   async function fetchReport() {
     setLoading(true);
     try {
@@ -94,6 +121,7 @@ export default function ReportsPage() {
           break;
         case "payments":
           if (filters.vehicleId) params.append("vehicleId", filters.vehicleId);
+          if (filters.paymentStatus) params.append("status", filters.paymentStatus);
           url = `/api/reports/payments?${params}`;
           break;
         case "bills":
@@ -297,7 +325,10 @@ export default function ReportsPage() {
                     vehicleId: "",
                     employeeId: "",
                     billType: "",
+                    paymentStatus: "",
                   });
+                  setVehicleSearchTerm("");
+                  setVehicles([]);
                 }}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
@@ -383,27 +414,46 @@ export default function ReportsPage() {
 
             {/* Payments Report Filters */}
             {activeTab === "payments" && (
-              <div>
-                <Label htmlFor="vehicleId">Vehicle (Optional)</Label>
-                <Select
-                  value={filters.vehicleId || undefined}
-                  onValueChange={(value) =>
-                    setFilters({ ...filters, vehicleId: value === "all" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Vehicles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Vehicles</SelectItem>
-                    {vehicles.map((vehicle) => (
-                      <SelectItem key={vehicle._id} value={vehicle._id}>
-                        {vehicle.number} - {vehicle.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="vehicleId">Vehicle (Optional)</Label>
+                  <SearchableSelect
+                    options={vehicles.map((vehicle) => ({
+                      value: vehicle._id,
+                      label: vehicle.number,
+                      subtitle: vehicle.name,
+                    }))}
+                    value={filters.vehicleId}
+                    onChange={(value) =>
+                      setFilters({ ...filters, vehicleId: value })
+                    }
+                    onSearchChange={handleVehicleSearch}
+                    loading={isSearchingVehicles}
+                    placeholder="Select vehicle..."
+                    searchPlaceholder="Search vehicles..."
+                    emptyMessage="No vehicle found. Start typing to search..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="paymentStatus">Payment Status (Optional)</Label>
+                  <Select
+                    value={filters.paymentStatus || undefined}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, paymentStatus: value === "all" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                      <SelectItem value="unpaid">Unpaid</SelectItem>
+                      <SelectItem value="partial">Partial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
             )}
 
             <div className="flex items-end">
