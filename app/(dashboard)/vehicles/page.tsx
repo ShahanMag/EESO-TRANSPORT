@@ -37,12 +37,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 export default function VehiclesPage() {
   const router = useRouter();
-  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated, setAssignedFilter } = useVehicles();
+  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated, setAssignedFilter, searchTerm, pendingSearch, searchVehicles } = useVehicles();
   const { employees: contextEmployees } = useEmployees();
 
-  // Local state for search and filters only
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searching, setSearching] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Track initial load
+  useEffect(() => {
+    if (contextVehicles.length > 0 && !contextLoading) {
+      setIsInitialLoad(false);
+    }
+  }, [contextVehicles, contextLoading]);
+
   const [assignedFilterValue, setAssignedFilterValue] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -655,7 +661,8 @@ export default function VehiclesPage() {
     }
   }
 
-  if (contextLoading) {
+  // Only show full screen loader on initial page load
+  if (contextLoading && isInitialLoad) {
     return <LoadingSpinner fullScreen />;
   }
 
@@ -697,7 +704,7 @@ export default function VehiclesPage() {
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-amber-700">
-            {searchTerm ? "Search Results" : "Viewing"}
+            {searchTerm ? "Search Results" : "On Page"}
           </p>
           <p className="text-2xl font-bold text-amber-900">
             {displayVehicles.length}
@@ -719,12 +726,12 @@ export default function VehiclesPage() {
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
               placeholder="Search by vehicle number or name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={pendingSearch}
+              onChange={(e) => searchVehicles(e.target.value)}
               className="pl-10"
               dir="auto"
             />
-            {searching && (
+            {contextLoading && pendingSearch && (
               <div className="absolute right-3 top-3">
                 <LoadingSpinner />
               </div>
@@ -754,7 +761,7 @@ export default function VehiclesPage() {
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
-            Searching for:{" "}
+            Active search:{" "}
             <span
               className="font-mono bg-gray-100 px-2 py-1 rounded"
               dir="auto"
@@ -776,7 +783,7 @@ export default function VehiclesPage() {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto h-[450px]">
+      <div className="hidden md:block bg-white rounded-lg shadow overflow-x-auto h-[450px] relative">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -914,10 +921,17 @@ export default function VehiclesPage() {
               : "No vehicles found"}
           </div>
         )}
+
+        {/* Loading overlay during search/filter */}
+        {contextLoading && !isInitialLoad && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden space-y-4 relative">
         {displayVehicles.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
             {searchTerm
@@ -1009,6 +1023,13 @@ export default function VehiclesPage() {
               </div>
             </div>
           ))
+        )}
+
+        {/* Loading overlay during search/filter */}
+        {contextLoading && !isInitialLoad && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center rounded-lg min-h-[200px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          </div>
         )}
       </div>
 

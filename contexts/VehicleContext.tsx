@@ -28,12 +28,15 @@ interface VehicleContextType {
   loading: boolean;
   error: string | null;
   pagination: Pagination;
-  fetchVehicles: (page?: number, limit?: number, terminated?: boolean, assigned?: boolean | null) => Promise<void>;
+  searchTerm: string;
+  pendingSearch: string;
+  fetchVehicles: (page?: number, limit?: number, terminated?: boolean, assigned?: boolean | null, search?: string) => Promise<void>;
   refetchVehicles: () => Promise<void>;
   goToPage: (page: number) => Promise<void>;
   setItemsPerPage: (limit: number) => Promise<void>;
   setShowTerminated: (show: boolean) => Promise<void>;
   setAssignedFilter: (assigned: boolean | null) => Promise<void>;
+  searchVehicles: (search: string) => void;
 }
 
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
@@ -52,13 +55,28 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   });
   const [showTerminated, setShowTerminatedState] = useState(false);
   const [assignedFilter, setAssignedFilterState] = useState<boolean | null>(null);
+  const [searchTerm, setSearchTermState] = useState<string>("");
+  const [pendingSearch, setPendingSearchState] = useState<string>("");
 
   // Initial fetch on mount
   useEffect(() => {
     fetchVehicles(1, 100, showTerminated);
   }, []);
 
-  async function fetchVehicles(page = 1, limit = 100, terminated = false, assigned: boolean | null = null) {
+  // Debounce search - only call API after user stops typing for 500ms
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (pendingSearch !== searchTerm) {
+        setSearchTermState(pendingSearch);
+        // Fetch with the new search term
+        fetchVehicles(1, pagination.itemsPerPage, showTerminated, assignedFilter, pendingSearch);
+      }
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [pendingSearch]);
+
+  async function fetchVehicles(page = 1, limit = 100, terminated = false, assigned: boolean | null = null, search: string = "") {
     try {
       setLoading(true);
       setError(null);
@@ -76,6 +94,11 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       // Add assigned filter if needed
       if (assigned !== null) {
         params.append("assigned", assigned.toString());
+      }
+
+      // Add search parameter if needed
+      if (search.trim()) {
+        params.append("search", search.trim());
       }
 
       const url = `/api/vehicles?${params.toString()}`;
@@ -106,25 +129,30 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function refetchVehicles() {
-    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated, assignedFilter);
+    await fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated, assignedFilter, searchTerm);
   }
 
   async function goToPage(page: number) {
-    await fetchVehicles(page, pagination.itemsPerPage, showTerminated, assignedFilter);
+    await fetchVehicles(page, pagination.itemsPerPage, showTerminated, assignedFilter, searchTerm);
   }
 
   async function setItemsPerPage(limit: number) {
-    await fetchVehicles(1, limit, showTerminated, assignedFilter);
+    await fetchVehicles(1, limit, showTerminated, assignedFilter, searchTerm);
   }
 
   async function setShowTerminated(show: boolean) {
     setShowTerminatedState(show);
-    await fetchVehicles(1, pagination.itemsPerPage, show, assignedFilter);
+    await fetchVehicles(1, pagination.itemsPerPage, show, assignedFilter, searchTerm);
   }
 
   async function setAssignedFilter(assigned: boolean | null) {
     setAssignedFilterState(assigned);
-    await fetchVehicles(1, pagination.itemsPerPage, showTerminated, assigned);
+    await fetchVehicles(1, pagination.itemsPerPage, showTerminated, assigned, searchTerm);
+  }
+
+  function searchVehicles(search: string) {
+    // Just update the pending search - the useEffect will debounce and call the API
+    setPendingSearchState(search);
   }
 
   return (
@@ -134,12 +162,15 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
         loading,
         error,
         pagination,
+        searchTerm,
+        pendingSearch,
         fetchVehicles,
         refetchVehicles,
         goToPage,
         setItemsPerPage,
         setShowTerminated,
         setAssignedFilter,
+        searchVehicles,
       }}
     >
       {children}

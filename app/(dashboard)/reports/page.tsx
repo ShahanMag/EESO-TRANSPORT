@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-utils";
-import { Download } from "lucide-react";
+import { Download, Check, X } from "lucide-react";
 import { apiRequest } from "@/lib/api-config";
 import { toast } from "sonner";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
@@ -41,7 +41,7 @@ export default function ReportsPage() {
     vehicleId: "",
     employeeId: "",
     billType: "",
-    paymentStatus: "",
+    paymentStatus: [] as string[],
   });
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -103,6 +103,16 @@ export default function ReportsPage() {
     }
   }
 
+  // Handle payment status filter toggle
+  function togglePaymentStatus(status: string) {
+    setFilters(prev => ({
+      ...prev,
+      paymentStatus: prev.paymentStatus.includes(status)
+        ? prev.paymentStatus.filter(s => s !== status)
+        : [...prev.paymentStatus, status]
+    }));
+  }
+
   async function fetchReport() {
     setLoading(true);
     try {
@@ -121,7 +131,10 @@ export default function ReportsPage() {
           break;
         case "payments":
           if (filters.vehicleId) params.append("vehicleId", filters.vehicleId);
-          if (filters.paymentStatus) params.append("status", filters.paymentStatus);
+          // Add multiple status filters if any are selected
+          filters.paymentStatus.forEach(status => {
+            params.append("status", status);
+          });
           url = `/api/reports/payments?${params}`;
           break;
         case "bills":
@@ -325,7 +338,7 @@ export default function ReportsPage() {
                     vehicleId: "",
                     employeeId: "",
                     billType: "",
-                    paymentStatus: "",
+                    paymentStatus: [],
                   });
                   setVehicleSearchTerm("");
                   setVehicles([]);
@@ -436,22 +449,45 @@ export default function ReportsPage() {
                 </div>
                 <div>
                   <Label htmlFor="paymentStatus">Payment Status (Optional)</Label>
-                  <Select
-                    value={filters.paymentStatus || undefined}
-                    onValueChange={(value) =>
-                      setFilters({ ...filters, paymentStatus: value === "all" ? "" : value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="unpaid">Unpaid</SelectItem>
-                      <SelectItem value="partial">Partial</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={filters.paymentStatus.includes("paid") ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => togglePaymentStatus("paid")}
+                      className="h-10"
+                    >
+                      {filters.paymentStatus.includes("paid") && <Check className="mr-2 h-4 w-4" />}
+                      Paid
+                    </Button>
+                    <Button
+                      variant={filters.paymentStatus.includes("unpaid") ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => togglePaymentStatus("unpaid")}
+                      className="h-10"
+                    >
+                      {filters.paymentStatus.includes("unpaid") && <Check className="mr-2 h-4 w-4" />}
+                      Unpaid
+                    </Button>
+                    <Button
+                      variant={filters.paymentStatus.includes("partial") ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => togglePaymentStatus("partial")}
+                      className="h-10"
+                    >
+                      {filters.paymentStatus.includes("partial") && <Check className="mr-2 h-4 w-4" />}
+                      Partial
+                    </Button>
+                    {filters.paymentStatus.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFilters({ ...filters, paymentStatus: [] })}
+                        className="h-10"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </>
             )}

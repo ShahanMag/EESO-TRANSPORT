@@ -20,10 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car } from "lucide-react";
+import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car, Check, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { Pagination } from "@/components/ui/pagination";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
@@ -67,6 +68,7 @@ export default function PaymentsPage() {
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
   const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState({
     currentPage: { totalAmount: 0, paidAmount: 0, dueAmount: 0 },
     total: { totalAmount: 0, paidAmount: 0, dueAmount: 0 },
@@ -91,7 +93,7 @@ export default function PaymentsPage() {
   }>({ open: false, type: null, id: null });
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
   const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid" | "partial">("all");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   const [paymentFormData, setPaymentFormData] = useState({
     vehicleId: "",
@@ -116,6 +118,17 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments(1, pagination.itemsPerPage);
   }, [statusFilter]);
+
+  // Handle status filter toggle
+  function toggleStatusFilter(status: string) {
+    setStatusFilter(prev => {
+      if (prev.includes(status)) {
+        return prev.filter(s => s !== status);
+      } else {
+        return [...prev, status];
+      }
+    });
+  }
 
   // Filter vehicles from context based on search term
   const searchedVehicles = vehicleSearchTerm.trim() === ""
@@ -185,15 +198,16 @@ export default function PaymentsPage() {
     limit = pagination.itemsPerPage
   ) {
     try {
+      setIsLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
 
-      // Add status filter to API call if not "all"
-      if (statusFilter !== "all") {
-        params.append("status", statusFilter);
-      }
+      // Add status filters to API call if any are selected
+      statusFilter.forEach(status => {
+        params.append("status", status);
+      });
 
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
@@ -253,6 +267,8 @@ export default function PaymentsPage() {
       }
     } catch (error) {
       console.error("Error fetching payments:", error);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -518,6 +534,10 @@ export default function PaymentsPage() {
   const totalPaid = filteredGroups.reduce((sum, g) => sum + g.totalPaid, 0);
   const totalDues = totalAmount - totalPaid;
 
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -594,18 +614,44 @@ export default function PaymentsPage() {
             />
           </div>
         </div>
-        <div className="w-40">
-          <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-            <SelectTrigger className="bg-white">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="unpaid">Unpaid</SelectItem>
-              <SelectItem value="partial">Partial</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex gap-2">
+          <Button
+            variant={statusFilter.includes("paid") ? "default" : "outline"}
+            size="sm"
+            onClick={() => toggleStatusFilter("paid")}
+            className="h-10"
+          >
+            {statusFilter.includes("paid") && <Check className="mr-2 h-4 w-4" />}
+            Paid
+          </Button>
+          <Button
+            variant={statusFilter.includes("unpaid") ? "default" : "outline"}
+            size="sm"
+            onClick={() => toggleStatusFilter("unpaid")}
+            className="h-10"
+          >
+            {statusFilter.includes("unpaid") && <Check className="mr-2 h-4 w-4" />}
+            Unpaid
+          </Button>
+          <Button
+            variant={statusFilter.includes("partial") ? "default" : "outline"}
+            size="sm"
+            onClick={() => toggleStatusFilter("partial")}
+            className="h-10"
+          >
+            {statusFilter.includes("partial") && <Check className="mr-2 h-4 w-4" />}
+            Partial
+          </Button>
+          {statusFilter.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStatusFilter([])}
+              className="h-10"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
