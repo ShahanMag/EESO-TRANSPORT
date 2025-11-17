@@ -116,8 +116,17 @@ export default function PaymentsPage() {
 
   // Refetch when status filter changes
   useEffect(() => {
-    fetchPayments(1, pagination.itemsPerPage);
+    fetchPayments(1, pagination.itemsPerPage, searchTerm);
   }, [statusFilter]);
+
+  // Refetch when search term changes (with debouncing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPayments(1, pagination.itemsPerPage, searchTerm);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   // Handle status filter toggle
   function toggleStatusFilter(status: string) {
@@ -176,26 +185,22 @@ export default function PaymentsPage() {
 
     const groupsArray = Array.from(groups.values());
     setVehicleGroups(groupsArray);
-
-    // Apply search filter only (status filter is now handled by API)
-    const filtered = groupsArray.filter((group) =>
-      group.vehicle.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      group.vehicle.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredGroups(filtered);
-  }, [payments, searchTerm]);
+    // No local filtering - backend handles search and status filtering
+    setFilteredGroups(groupsArray);
+  }, [payments]);
 
   function handlePageChange(page: number) {
-    fetchPayments(page, pagination.itemsPerPage);
+    fetchPayments(page, pagination.itemsPerPage, searchTerm);
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchPayments(1, limit); // Reset to page 1 when changing items per page
+    fetchPayments(1, limit, searchTerm); // Reset to page 1 when changing items per page
   }
 
   async function fetchPayments(
     page = pagination.currentPage,
-    limit = pagination.itemsPerPage
+    limit = pagination.itemsPerPage,
+    search = searchTerm
   ) {
     try {
       setIsLoading(true);
@@ -203,6 +208,11 @@ export default function PaymentsPage() {
         page: page.toString(),
         limit: limit.toString(),
       });
+
+      // Add search term to API call if provided
+      if (search && search.trim() !== "") {
+        params.append("search", search.trim());
+      }
 
       // Add status filters to API call if any are selected
       statusFilter.forEach(status => {
@@ -333,7 +343,7 @@ export default function PaymentsPage() {
       const data = await res.json();
 
       if (data.success) {
-        fetchPayments();
+        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
         handleClosePaymentDialog();
       } else {
         setErrors({ submit: data.error });
@@ -369,7 +379,7 @@ export default function PaymentsPage() {
       const data = await res.json();
 
       if (data.success) {
-        fetchPayments();
+        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
         handleCloseInstallmentDialog();
       } else {
         setErrors({ submit: data.error });
@@ -396,7 +406,7 @@ export default function PaymentsPage() {
 
       if (data.success) {
         toast.success("Payment deleted successfully");
-        fetchPayments();
+        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
       } else {
         toast.error(data.error || "Failed to delete payment");
       }
@@ -424,7 +434,7 @@ export default function PaymentsPage() {
 
       if (data.success) {
         toast.success("Installment deleted successfully");
-        fetchPayments();
+        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
       } else {
         toast.error(data.error || "Failed to delete installment");
       }
