@@ -14,6 +14,7 @@ import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart
 import { ChartCarousel } from "@/components/charts/chart-carousel";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { apiRequest } from "@/lib/api-config";
+import { useYearFilter } from "@/contexts/YearFilterContext";
 
 interface Installment {
   _id: string;
@@ -49,6 +50,7 @@ interface Bill {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { selectedYear } = useYearFilter();
   const [stats, setStats] = useState({
     employees: 0,
     vehicles: 0,
@@ -72,16 +74,21 @@ console.log(recentPayments);
     fetchDashboardData();
   }, []);
 
+  // Refetch when year changes
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedYear]);
+
   async function fetchDashboardData() {
     try {
       setLoading(true);
 
       // Single API call for all dashboard data!
-      const res = await apiRequest("/api/reports/dashboard");
+      const res = await apiRequest(`/api/reports/dashboard?year=${selectedYear}`);
       const result = await res.json();
 
       // Fetch unassigned vehicles count
-      const vehiclesRes = await apiRequest("/api/vehicles?assigned=false&limit=1");
+      const vehiclesRes = await apiRequest(`/api/vehicles?assigned=false&limit=1&year=${selectedYear}`);
       const vehiclesResult = await vehiclesRes.json();
 
       if (result.success) {

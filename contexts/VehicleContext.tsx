@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useYearFilter } from "./YearFilterContext";
 
 export interface Vehicle {
   _id: string;
@@ -43,6 +44,7 @@ const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export function VehicleProvider({ children }: { children: React.ReactNode }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const { selectedYear } = useYearFilter();
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,11 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetchVehicles(1, 100, showTerminated);
   }, []);
+
+  // Refetch when year changes
+  useEffect(() => {
+    fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated, assignedFilter, searchTerm);
+  }, [selectedYear]);
 
   // Debounce search - only call API after user stops typing for 500ms
   useEffect(() => {
@@ -84,6 +91,7 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
+        year: selectedYear.toString(),
       });
 
       // Add terminated filter if needed

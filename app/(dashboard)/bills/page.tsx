@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
+import { useYearFilter } from "@/contexts/YearFilterContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -45,6 +46,7 @@ interface Employee {
 }
 
 export default function BillsPage() {
+  const { selectedYear } = useYearFilter();
   const [bills, setBills] = useState<Bill[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -84,7 +86,7 @@ export default function BillsPage() {
     }, 500); // 500ms delay after user stops typing
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchTerm, filterType, filterAgent, startDate, endDate, viewMode]);
+  }, [searchTerm, filterType, filterAgent, startDate, endDate, viewMode, selectedYear]);
 
   async function fetchBills() {
     try {
@@ -123,6 +125,8 @@ export default function BillsPage() {
       if (endDate) {
         params.append("endDate", endDate);
       }
+
+      params.append("year", selectedYear.toString());
 
       const queryString = params.toString();
       const url = `${API_URL}/api/bills${queryString ? `?${queryString}` : ""}`;

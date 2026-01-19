@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { YearFilterProvider } from "@/contexts/YearFilterContext";
 import { VehicleProvider } from "@/contexts/VehicleContext";
 import { EmployeeProvider } from "@/contexts/EmployeeContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
@@ -24,13 +25,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <VehicleProvider>
-          <EmployeeProvider>
-            <PaymentProvider>
-              {children}
-            </PaymentProvider>
-          </EmployeeProvider>
-        </VehicleProvider>
+        <YearFilterProvider>
+          <VehicleProvider>
+            <EmployeeProvider>
+              <PaymentProvider>
+                {children}
+              </PaymentProvider>
+            </EmployeeProvider>
+          </VehicleProvider>
+        </YearFilterProvider>
       </body>
     </html>
   );

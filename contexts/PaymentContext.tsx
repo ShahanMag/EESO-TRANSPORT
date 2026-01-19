@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useYearFilter } from "./YearFilterContext";
 
 export interface Payment {
   _id: string;
@@ -23,6 +24,7 @@ const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
 
 export function PaymentProvider({ children }: { children: React.ReactNode }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const { selectedYear } = useYearFilter();
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,11 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
     fetchPayments();
   }, []);
 
+  // Refetch when year changes
+  useEffect(() => {
+    fetchPayments();
+  }, [selectedYear]);
+
   async function fetchPayments() {
     try {
       setLoading(true);
@@ -41,6 +48,7 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
       const params = new URLSearchParams({
         page: "1",
         limit: "100",
+        year: selectedYear.toString(),
       });
 
       const res = await fetch(

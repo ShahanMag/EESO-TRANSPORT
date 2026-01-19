@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useYearFilter } from "./YearFilterContext";
 
 export interface Employee {
   _id: string;
@@ -36,6 +37,7 @@ const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined
 
 export function EmployeeProvider({ children }: { children: React.ReactNode }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const { selectedYear } = useYearFilter();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +54,11 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     fetchEmployees(1, 100);
   }, []);
 
+  // Refetch when year changes
+  useEffect(() => {
+    fetchEmployees(pagination.currentPage, pagination.itemsPerPage);
+  }, [selectedYear]);
+
   async function fetchEmployees(page = 1, limit = 100) {
     try {
       setLoading(true);
@@ -60,6 +67,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
+        year: selectedYear.toString(),
       });
 
       const res = await fetch(`${API_URL}/api/employees?${params.toString()}`, {

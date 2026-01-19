@@ -16,10 +16,19 @@ import {
   Settings,
   LogOut,
   UserCircle,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
@@ -51,6 +60,11 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { selectedYear, setSelectedYear } = useYearFilter();
+
+  // Generate year options (current year ± 5 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   useEffect(() => {
     fetchUser();
@@ -108,6 +122,35 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
           height={60}
           className="rounded"
         />
+      </div>
+
+      {/* Year Filter Section */}
+      <div className="px-3 py-4 border-b border-gray-800">
+        <div className="flex items-center gap-2 mb-2">
+          <Calendar className="h-4 w-4 text-gray-400" />
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Year Filter
+          </span>
+        </div>
+        <Select
+          value={selectedYear.toString()}
+          onValueChange={(value) => setSelectedYear(parseInt(value, 10))}
+        >
+          <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white hover:bg-gray-700">
+            <SelectValue placeholder="Select year" />
+          </SelectTrigger>
+          <SelectContent className="bg-gray-800 border-gray-700">
+            {yearOptions.map((year) => (
+              <SelectItem
+                key={year}
+                value={year.toString()}
+                className="text-white hover:bg-gray-700 focus:bg-gray-700 focus:text-white"
+              >
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Navigation */}

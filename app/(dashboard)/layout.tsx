@@ -6,6 +6,8 @@ import { Toaster } from "sonner";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export default function DashboardLayout({
   children,
@@ -13,6 +15,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const { isYearChanging } = useYearFilter();
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -28,7 +31,7 @@ export default function DashboardLayout({
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 overflow-y-auto bg-gray-50">
+      <main className="flex-1 overflow-y-auto bg-gray-50 relative">
         {/* Mobile Header with Hamburger */}
         <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
           <Button
@@ -41,6 +44,16 @@ export default function DashboardLayout({
           </Button>
           <h2 className="font-semibold text-gray-900">EESA Transport Co</h2>
         </div>
+
+        {/* Year Change Loader Overlay */}
+        {isYearChanging && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="text-center">
+              <LoadingSpinner />
+              <p className="mt-4 text-gray-600 font-medium">Loading data for selected year...</p>
+            </div>
+          </div>
+        )}
 
         <div className="container mx-auto p-4 md:p-6">{children}</div>
       </main>
