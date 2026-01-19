@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Car, CreditCard, FileText, Calendar, DollarSign, ArrowRight } from "lucide-react";
+import {
+  Users,
+  Car,
+  CreditCard,
+  FileText,
+  Calendar,
+  DollarSign,
+  ArrowRight,
+} from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +67,9 @@ export default function DashboardPage() {
     bills: 0,
   });
 
-  const [recentPayments, setRecentPayments] = useState<PaymentWithInstallments[]>([]);
+  const [recentPayments, setRecentPayments] = useState<
+    PaymentWithInstallments[]
+  >([]);
   const [recentBills, setRecentBills] = useState<Bill[]>([]);
   const [allPayments, setAllPayments] = useState<PaymentWithInstallments[]>([]);
   const [allBills, setAllBills] = useState<Bill[]>([]);
@@ -68,7 +78,7 @@ export default function DashboardPage() {
     from: "",
     to: "",
   });
-console.log(recentPayments);
+  console.log(recentPayments);
 
   useEffect(() => {
     fetchDashboardData();
@@ -84,15 +94,19 @@ console.log(recentPayments);
       setLoading(true);
 
       // Single API call for all dashboard data!
-      const res = await apiRequest(`/api/reports/dashboard?year=${selectedYear}`);
+      const res = await apiRequest(
+        `/api/reports/dashboard?year=${selectedYear}`
+      );
       const result = await res.json();
 
       // Fetch unassigned vehicles count
-      const vehiclesRes = await apiRequest(`/api/vehicles?assigned=false&limit=1&year=${selectedYear}`);
+      const vehiclesRes = await apiRequest(
+        `/api/vehicles?assigned=false&limit=1&year=${selectedYear}`
+      );
       const vehiclesResult = await vehiclesRes.json();
 
       if (result.success) {
-        const { counts, recent } = result.data;
+        const { counts, recent, charts } = result.data;
         let unassignedCount = 0;
 
         // Get unassigned vehicles count from pagination
@@ -109,13 +123,17 @@ console.log(recentPayments);
           bills: counts.bills,
         });
 
-        // Set recent payments (already have paidAmount and dues from backend)
+        // Set recent payments for display
         setRecentPayments(recent.payments || []);
-        setAllPayments(recent.payments || []);
 
-        // Set recent bills
+        // Set all payments from charts data for chart rendering
+        setAllPayments(charts?.payments || []);
+
+        // Set recent bills for display
         setRecentBills(recent.bills || []);
-        setAllBills(recent.bills || []);
+
+        // Set all bills from charts data for chart rendering
+        setAllBills(charts?.bills || []);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -127,7 +145,11 @@ console.log(recentPayments);
   function getStatusBadge(totalAmount: number, paidAmount: number) {
     const status = getPaymentStatus(totalAmount, paidAmount);
     const variant =
-      status === "paid" ? "success" : status === "partial" ? "warning" : "danger";
+      status === "paid"
+        ? "success"
+        : status === "partial"
+        ? "warning"
+        : "danger";
     return <Badge variant={variant}>{status}</Badge>;
   }
 
@@ -136,19 +158,25 @@ console.log(recentPayments);
   }
 
   // Filter data by date range
-  const filteredPayments = dateRange.from && dateRange.to
-    ? allPayments.filter((p) => {
-        const date = new Date(p.date);
-        return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
-      })
-    : allPayments;
+  const filteredPayments =
+    dateRange.from && dateRange.to
+      ? allPayments.filter((p) => {
+          const date = new Date(p.date);
+          return (
+            date >= new Date(dateRange.from) && date <= new Date(dateRange.to)
+          );
+        })
+      : allPayments;
 
-  const filteredBills = dateRange.from && dateRange.to
-    ? allBills.filter((b) => {
-        const date = new Date(b.date);
-        return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
-      })
-    : allBills;
+  const filteredBills =
+    dateRange.from && dateRange.to
+      ? allBills.filter((b) => {
+          const date = new Date(b.date);
+          return (
+            date >= new Date(dateRange.from) && date <= new Date(dateRange.to)
+          );
+        })
+      : allBills;
 
   return (
     <div className="space-y-6">
@@ -183,7 +211,7 @@ console.log(recentPayments);
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card
           className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push('/employees')}
+          onClick={() => router.push("/employees")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700">
@@ -192,12 +220,14 @@ console.log(recentPayments);
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">{stats.employees}</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {stats.employees}
+            </div>
           </CardContent>
         </Card>
         <Card
           className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push('/vehicles')}
+          onClick={() => router.push("/vehicles")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
@@ -206,12 +236,14 @@ console.log(recentPayments);
             <Car className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">{stats.unassignedVehicles}</div>
+            <div className="text-2xl font-bold text-purple-900">
+              {stats.unassignedVehicles}
+            </div>
           </CardContent>
         </Card>
         <Card
           className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push('/payments')}
+          onClick={() => router.push("/payments")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
@@ -220,19 +252,25 @@ console.log(recentPayments);
             <CreditCard className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">{stats.payments}</div>
+            <div className="text-2xl font-bold text-green-900">
+              {stats.payments}
+            </div>
           </CardContent>
         </Card>
         <Card
           className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200 cursor-pointer hover:shadow-lg transition-shadow"
-          onClick={() => router.push('/bills')}
+          onClick={() => router.push("/bills")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-amber-700">Income & Expense</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-700">
+              Income & Expense
+            </CardTitle>
             <FileText className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-900">{stats.bills}</div>
+            <div className="text-2xl font-bold text-amber-900">
+              {stats.bills}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -243,16 +281,16 @@ console.log(recentPayments);
           <ChartCarousel
             charts={[
               {
-                title: "Income & Expense Trends",
-                component: <IncomeExpenseChart bills={filteredBills} />,
-              },
-              {
                 title: "Vehicle Payments Overview",
                 component: <VehiclePaymentsChart payments={filteredPayments} />,
               },
+              {
+                title: "Income & Expense Trends",
+                component: <IncomeExpenseChart bills={filteredBills} />,
+              },
             ]}
             autoRotate={true}
-            intervalMs={5000}
+            intervalMs={10000}
           />
         </CardContent>
       </Card>
@@ -269,7 +307,7 @@ console.log(recentPayments);
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/vehicles')}
+                onClick={() => router.push("/vehicles")}
                 className="text-indigo-700 hover:text-indigo-900 hover:bg-indigo-200"
               >
                 View All
@@ -288,9 +326,14 @@ console.log(recentPayments);
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
                         <h3 className="font-semibold text-gray-900">
-                          {payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle"}
+                          {payment.vehicleId
+                            ? payment.vehicleId.number
+                            : "Deleted Vehicle"}
                         </h3>
-                        {getStatusBadge(payment.totalAmount, payment.paidAmount)}
+                        {getStatusBadge(
+                          payment.totalAmount,
+                          payment.paidAmount
+                        )}
                       </div>
                       <p className="text-sm text-gray-600">
                         {payment.vehicleId ? payment.vehicleId.name : "-"}
@@ -317,7 +360,9 @@ console.log(recentPayments);
                     </div> */}
                   </div>
                   {payment.remarks && (
-                    <p className="text-xs text-gray-500 mt-2 italic">{payment.remarks}</p>
+                    <p className="text-xs text-gray-500 mt-2 italic">
+                      {payment.remarks}
+                    </p>
                   )}
                 </div>
               ))
@@ -340,7 +385,7 @@ console.log(recentPayments);
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/bills')}
+                onClick={() => router.push("/bills")}
                 className="text-rose-700 hover:text-rose-900 hover:bg-rose-200"
               >
                 View All
@@ -358,14 +403,22 @@ console.log(recentPayments);
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{bill.name}</h3>
-                        <Badge variant={bill.type === "income" ? "default" : "secondary"}>
+                        <h3 className="font-semibold text-gray-900">
+                          {bill.name}
+                        </h3>
+                        <Badge
+                          variant={
+                            bill.type === "income" ? "default" : "secondary"
+                          }
+                        >
                           {bill.type}
                         </Badge>
                         {getStatusBadge(bill.totalAmount, bill.paidAmount)}
                       </div>
                       {bill.employeeId && (
-                        <p className="text-sm text-gray-600">Agent: {bill.employeeId.name}</p>
+                        <p className="text-sm text-gray-600">
+                          Agent: {bill.employeeId.name}
+                        </p>
                       )}
                     </div>
                     <div className="text-right">
@@ -384,7 +437,8 @@ console.log(recentPayments);
                         Paid: {formatCurrency(bill.paidAmount)}
                       </span>
                       <span className="text-red-600 font-semibold">
-                        Due: {formatCurrency(bill.totalAmount - bill.paidAmount)}
+                        Due:{" "}
+                        {formatCurrency(bill.totalAmount - bill.paidAmount)}
                       </span>
                     </div>
                   </div>

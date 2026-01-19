@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Calendar, Users, UserCheck } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Calendar, Users, UserCheck, DollarSign, ChevronDown, ChevronRight } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
@@ -29,14 +29,23 @@ import { useYearFilter } from "@/contexts/YearFilterContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
+interface Installment {
+  _id: string;
+  billId?: string;
+  amount: number;
+  date: string;
+  remarks?: string;
+}
+
 interface Bill {
   _id: string;
   type: "income" | "expense";
   name: string;
   totalAmount: number;
-  paidAmount: number;
+  paidAmount: number; // Calculated from installments
   date: string;
   employeeId?: { _id: string; name: string; type: string };
+  installments?: Installment[];
 }
 
 interface Employee {
@@ -57,21 +66,31 @@ export default function BillsPage() {
   const [viewMode, setViewMode] = useState<"all" | "agents">("all");
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<Bill | null>(null);
   const [formData, setFormData] = useState({
     type: "income" as "income" | "expense",
     name: "",
     totalAmount: "",
-    paidAmount: "",
     date: new Date().toISOString().split("T")[0],
     employeeId: "none",
   });
+
+  const [selectedBillForInstallments, setSelectedBillForInstallments] = useState<Bill | null>(null);
+  const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
+  const [installmentFormData, setInstallmentFormData] = useState({
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
+    remarks: "",
+  });
+  const [installmentErrors, setInstallmentErrors] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     open: boolean;
     id: string | null;
   }>({ open: false, id: null });
+  const [expandedBills, setExpandedBills] = useState<Set<string>>(new Set());
 
   // Initial load
   useEffect(() => {
@@ -172,21 +191,31 @@ export default function BillsPage() {
     }
 
     const totalAmount = parseFloat(formData.totalAmount);
-    const paidAmount = parseFloat(formData.paidAmount);
 
     if (isNaN(totalAmount) || totalAmount < 0) {
       newErrors.totalAmount = "Total amount must be a positive number";
     }
 
-    if (isNaN(paidAmount) || paidAmount < 0) {
-      newErrors.paidAmount = "Paid amount must be a positive number";
-    }
-
-    if (paidAmount > totalAmount) {
-      newErrors.paidAmount = "Paid amount cannot exceed total amount";
-    }
-
     setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function validateInstallmentForm() {
+    const newErrors: Record<string, string> = {};
+
+    const amount = parseFloat(installmentFormData.amount);
+    if (isNaN(amount) || amount <= 0) {
+      newErrors.amount = "Amount must be a positive number";
+    }
+
+    if (selectedBillForInstallments) {
+      const remainingAmount = selectedBillForInstallments.totalAmount - selectedBillForInstallments.paidAmount;
+      if (amount > remainingAmount) {
+        newErrors.amount = `Amount cannot exceed remaining amount (${formatCurrency(remainingAmount)})`;
+      }
+    }
+
+    setInstallmentErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
 
@@ -195,6 +224,7 @@ export default function BillsPage() {
     if (!validateForm()) return;
 
     try {
+      setSubmitting(true);
       const url = editingBill ? `/api/bills/${editingBill._id}` : "/api/bills";
       const method = editingBill ? "PUT" : "POST";
 
@@ -206,7 +236,6 @@ export default function BillsPage() {
           type: formData.type,
           name: formData.name,
           totalAmount: parseFloat(formData.totalAmount),
-          paidAmount: parseFloat(formData.paidAmount),
           date: new Date(formData.date),
           employeeId: formData.employeeId === "none" ? null : formData.employeeId,
         }),
@@ -229,6 +258,9 @@ export default function BillsPage() {
     } catch (error) {
       console.error("Error saving bill:", error);
       setErrors({ submit: "An error occurred" });
+      toast.error("An error occurred while saving transaction");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -267,7 +299,6 @@ export default function BillsPage() {
         type: bill.type,
         name: bill.name,
         totalAmount: bill.totalAmount.toString(),
-        paidAmount: bill.paidAmount.toString(),
         date: new Date(bill.date).toISOString().split("T")[0],
         employeeId: bill.employeeId?._id || "none",
       });
@@ -277,13 +308,85 @@ export default function BillsPage() {
         type: "income",
         name: "",
         totalAmount: "",
-        paidAmount: "",
         date: new Date().toISOString().split("T")[0],
         employeeId: "none",
       });
     }
     setErrors({});
     setIsDialogOpen(true);
+  }
+
+  function handleOpenInstallmentDialog(bill: Bill) {
+    setSelectedBillForInstallments(bill);
+    setInstallmentFormData({
+      amount: "",
+      date: new Date().toISOString().split("T")[0],
+      remarks: "",
+    });
+    setInstallmentErrors({});
+    setIsInstallmentDialogOpen(true);
+  }
+
+  function handleCloseInstallmentDialog() {
+    setIsInstallmentDialogOpen(false);
+    setSelectedBillForInstallments(null);
+    setInstallmentErrors({});
+  }
+
+  async function handleInstallmentSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validateInstallmentForm() || !selectedBillForInstallments) return;
+
+    try {
+      setSubmitting(true);
+      const res = await fetch(`${API_URL}/api/installments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          billId: selectedBillForInstallments._id,
+          amount: parseFloat(installmentFormData.amount),
+          date: new Date(installmentFormData.date),
+          remarks: installmentFormData.remarks || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Installment added successfully");
+        fetchBills();
+        handleCloseInstallmentDialog();
+      } else {
+        toast.error(data.error || "Failed to add installment");
+        setInstallmentErrors({ submit: data.error });
+      }
+    } catch (error) {
+      console.error("Error adding installment:", error);
+      toast.error("An error occurred while adding installment");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteInstallment(installmentId: string) {
+    try {
+      const res = await fetch(`${API_URL}/api/installments/${installmentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("Installment deleted successfully");
+        fetchBills();
+      } else {
+        toast.error(data.error || "Failed to delete installment");
+      }
+    } catch (error) {
+      console.error("Error deleting installment:", error);
+      toast.error("An error occurred while deleting installment");
+    }
   }
 
   function handleCloseDialog() {
@@ -297,6 +400,18 @@ export default function BillsPage() {
     const variant =
       status === "paid" ? "success" : status === "partial" ? "warning" : "danger";
     return <Badge variant={variant}>{status}</Badge>;
+  }
+
+  function toggleBillExpansion(billId: string) {
+    setExpandedBills(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(billId)) {
+        newSet.delete(billId);
+      } else {
+        newSet.add(billId);
+      }
+      return newSet;
+    });
   }
 
   // Calculate totals from bills
@@ -510,6 +625,9 @@ export default function BillsPage() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Transaction Name
               </th>
@@ -540,52 +658,131 @@ export default function BillsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {bills.map((bill) => (
-              <tr key={bill._id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {bill.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  <Badge variant={bill.type === "income" ? "default" : "secondary"}>
-                    {bill.type}
-                  </Badge>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(bill.date)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {bill.employeeId?.name || "N/A"}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
-                  {formatCurrency(bill.totalAmount)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
-                  {formatCurrency(bill.paidAmount)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-semibold">
-                  {formatCurrency(bill.totalAmount - bill.paidAmount)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                  {getStatusBadge(bill.totalAmount, bill.paidAmount)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDialog(bill)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(bill._id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {bills.map((bill) => {
+              const isExpanded = expandedBills.has(bill._id);
+              const hasInstallments = bill.installments && bill.installments.length > 0;
+
+              return (
+                <>
+                  <tr key={bill._id} className="hover:bg-gray-50">
+                    <td className="px-3 py-4 whitespace-nowrap text-sm">
+                      {hasInstallments && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleBillExpansion(bill._id)}
+                          className="p-0 h-6 w-6"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {bill.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <Badge variant={bill.type === "income" ? "default" : "secondary"}>
+                        {bill.type}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(bill.date)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {bill.employeeId?.name || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
+                      {formatCurrency(bill.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
+                      {formatCurrency(bill.paidAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-semibold">
+                      {formatCurrency(bill.totalAmount - bill.paidAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      {getStatusBadge(bill.totalAmount, bill.paidAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenInstallmentDialog(bill)}
+                        title="Add Payment"
+                      >
+                        <DollarSign className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenDialog(bill)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(bill._id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </td>
+                  </tr>
+
+                  {/* Expandable Installments Section */}
+                  {isExpanded && hasInstallments && (
+                    <tr key={`${bill._id}-installments`}>
+                      <td colSpan={10} className="px-6 py-4 bg-gray-50">
+                        <div className="pl-8">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Payment History</h4>
+                          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Date</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Amount</th>
+                                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Remarks</th>
+                                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-600">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {bill.installments?.map((installment) => (
+                                  <tr key={installment._id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-sm text-gray-700">
+                                      {formatDate(installment.date)}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm font-semibold text-green-600">
+                                      {formatCurrency(installment.amount)}
+                                    </td>
+                                    <td className="px-4 py-2 text-sm text-gray-500">
+                                      {installment.remarks || "-"}
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteInstallment(installment._id)}
+                                        title="Delete Payment"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
           </tbody>
         </table>
         {bills.length === 0 && (
@@ -653,21 +850,6 @@ export default function BillsPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="paidAmount">Paid Amount (SAR)</Label>
-                <Input
-                  id="paidAmount"
-                  type="number"
-                  step="0.01"
-                  value={formData.paidAmount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, paidAmount: e.target.value })
-                  }
-                />
-                {errors.paidAmount && (
-                  <p className="text-sm text-red-500 mt-1">{errors.paidAmount}</p>
-                )}
-              </div>
-              <div>
                 <Label htmlFor="date">Date</Label>
                 <Input
                   id="date"
@@ -704,10 +886,20 @@ export default function BillsPage() {
               )}
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+                disabled={submitting}
+              >
                 Cancel
               </Button>
-              <Button type="submit">{editingBill ? "Update" : "Create"}</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting
+                  ? (editingBill ? "Updating..." : "Creating...")
+                  : (editingBill ? "Update" : "Create")
+                }
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -724,6 +916,89 @@ export default function BillsPage() {
         cancelText="Cancel"
         variant="destructive"
       />
+
+      {/* Installment Dialog */}
+      <Dialog open={isInstallmentDialogOpen} onOpenChange={setIsInstallmentDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Payment for {selectedBillForInstallments?.name}</DialogTitle>
+            <div className="text-sm text-gray-600 mt-2 space-y-1">
+              <div className="flex justify-between">
+                <span>Total Amount:</span>
+                <span className="font-semibold">{formatCurrency(selectedBillForInstallments?.totalAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Paid Amount:</span>
+                <span className="font-semibold text-green-600">{formatCurrency(selectedBillForInstallments?.paidAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1">
+                <span>Remaining:</span>
+                <span className="font-semibold text-red-600">
+                  {formatCurrency((selectedBillForInstallments?.totalAmount || 0) - (selectedBillForInstallments?.paidAmount || 0))}
+                </span>
+              </div>
+            </div>
+          </DialogHeader>
+          <form onSubmit={handleInstallmentSubmit}>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="installmentAmount">Amount (SAR)</Label>
+                <Input
+                  id="installmentAmount"
+                  type="number"
+                  step="0.01"
+                  value={installmentFormData.amount}
+                  onChange={(e) =>
+                    setInstallmentFormData({ ...installmentFormData, amount: e.target.value })
+                  }
+                  placeholder="Enter payment amount"
+                />
+                {installmentErrors.amount && (
+                  <p className="text-sm text-red-500 mt-1">{installmentErrors.amount}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="installmentDate">Date</Label>
+                <Input
+                  id="installmentDate"
+                  type="date"
+                  value={installmentFormData.date}
+                  onChange={(e) =>
+                    setInstallmentFormData({ ...installmentFormData, date: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label htmlFor="installmentRemarks">Remarks (Optional)</Label>
+                <Input
+                  id="installmentRemarks"
+                  value={installmentFormData.remarks}
+                  onChange={(e) =>
+                    setInstallmentFormData({ ...installmentFormData, remarks: e.target.value })
+                  }
+                  placeholder="Add any notes about this payment"
+                />
+              </div>
+              {installmentErrors.submit && (
+                <p className="text-sm text-red-500">{installmentErrors.submit}</p>
+              )}
+            </div>
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseInstallmentDialog}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Adding..." : "Add Payment"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
