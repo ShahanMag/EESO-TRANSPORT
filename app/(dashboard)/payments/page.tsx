@@ -28,6 +28,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import { log } from "console";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
@@ -63,6 +65,7 @@ interface VehiclePaymentGroup {
 
 export default function PaymentsPage() {
   const { vehicles: contextVehicles } = useVehicles();
+  const { selectedYear } = useYearFilter();
 
   const [payments, setPayments] = useState<PaymentWithInstallments[]>([]);
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
@@ -113,11 +116,12 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments();
   }, []);
+console.log(payments);
 
   // Refetch when status filter changes
   useEffect(() => {
     fetchPayments(1, pagination.itemsPerPage, searchTerm);
-  }, [statusFilter]);
+  }, [statusFilter, selectedYear]);
 
   // Refetch when search term changes (with debouncing)
   useEffect(() => {
@@ -146,6 +150,7 @@ export default function PaymentsPage() {
         v.number.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) ||
         v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase())
       );
+console.log(filteredGroups);
 
   useEffect(() => {
     // Group payments by vehicle
@@ -219,12 +224,15 @@ export default function PaymentsPage() {
         params.append("status", status);
       });
 
+      // Add year filter to API call
+      params.append("year", selectedYear.toString());
+
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
         fetch(`${API_URL}/api/payments?${params.toString()}`, {
           credentials: "include",
         }),
-        fetch(`${API_URL}/api/installments`, {
+        fetch(`${API_URL}/api/installments?year=${selectedYear}`, {
           credentials: "include",
         }),
       ]);
