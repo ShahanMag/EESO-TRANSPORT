@@ -14,11 +14,18 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Download, Calendar, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Download } from "lucide-react";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-utils";
+import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
+interface Employee {
+  _id: string;
+  name: string;
+  type: string;
+}
 
 interface Bill {
   _id: string;
@@ -30,103 +37,111 @@ interface Bill {
   employeeId?: { _id: string; name: string; type: string };
 }
 
+interface ReportData {
+  bills: Bill[];
+  summary: {
+    totalIncome: number;
+    totalExpense: number;
+    paidIncome: number;
+    paidExpense: number;
+    duesIncome: number;
+    duesExpense: number;
+    netTotal: number;
+    netPaid: number;
+  };
+}
+
 export default function IncomeExpenseReportsPage() {
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [dateRange, setDateRange] = useState({
-    from: "",
-    to: "",
+    startDate: "",
+    endDate: "",
   });
-  const [filterType, setFilterType] = useState<string>("all");
+  const [filters, setFilters] = useState({
+    billType: "",
+    employeeId: "",
+  });
 
   useEffect(() => {
-    fetchBills();
+    fetchEmployees();
   }, []);
 
-  useEffect(() => {
-    filterData();
-  }, [bills, dateRange, filterType]);
-
-  async function fetchBills() {
+  async function fetchEmployees() {
     try {
-      setLoading(true);
-      const res = await fetch(`${API_URL}/api/bills`, {
+      const res = await fetch(`${API_URL}/api/employees?limit=1000&type=agent`, {
         credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
-        setBills(data.data);
+        setEmployees(data.data);
       }
     } catch (error) {
-      console.error("Error fetching bills:", error);
+      console.error("Error fetching employees:", error);
+    }
+  }
+
+  async function fetchReport() {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+
+      if (dateRange.startDate) params.append("startDate", dateRange.startDate);
+      if (dateRange.endDate) params.append("endDate", dateRange.endDate);
+      if (filters.billType) params.append("type", filters.billType);
+      if (filters.employeeId) params.append("employeeId", filters.employeeId);
+
+      const url = `/api/reports/bills?${params.toString()}`;
+
+      const res = await fetch(`${API_URL}${url}`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setReportData(data.data);
+        toast.success("Report generated successfully");
+      } else {
+        toast.error(data.error || "Failed to generate report");
+      }
+    } catch (error) {
+      console.error("Error fetching report:", error);
+      toast.error("An error occurred while generating report");
     } finally {
       setLoading(false);
     }
   }
 
-  function filterData() {
-    let filtered = bills;
-
-    // Filter by type
-    if (filterType !== "all") {
-      filtered = filtered.filter((b) => b.type === filterType);
-    }
-
-    // Filter by date range
-    if (dateRange.from && dateRange.to) {
-      filtered = filtered.filter((b) => {
-        const date = new Date(b.date);
-        return date >= new Date(dateRange.from) && date <= new Date(dateRange.to);
-      });
-    }
-
-    setFilteredBills(filtered);
-  }
-
   function downloadExcel() {
-    // Prepare data for Excel
-    const excelData = filteredBills.map((bill) => ({
-      date: formatDate(bill.date),
-      type: bill.type.charAt(0).toUpperCase() + bill.type.slice(1),
+    if (!reportData) return;
+
+    const billData = reportData.bills.map((bill: Bill) => ({
       name: bill.name,
+      type: bill.type.charAt(0).toUpperCase() + bill.type.slice(1),
+      date: formatDate(bill.date),
       agent: bill.employeeId?.name || "N/A",
       totalAmount: bill.totalAmount,
       paidAmount: bill.paidAmount,
       dues: bill.totalAmount - bill.paidAmount,
-      status: getPaymentStatus(bill.totalAmount, bill.paidAmount),
     }));
 
-    const columns = [
-      { header: "Date", key: "date", width: 12 },
-      { header: "Type", key: "type", width: 10 },
-      { header: "Name", key: "name", width: 25 },
-      { header: "Agent", key: "agent", width: 20 },
-      { header: "Total Amount (SAR)", key: "totalAmount", width: 18 },
-      { header: "Paid Amount (SAR)", key: "paidAmount", width: 18 },
-      { header: "Dues (SAR)", key: "dues", width: 15 },
-      { header: "Status", key: "status", width: 12 },
-    ];
-
-    exportToExcel(excelData, columns, "income-expense-report");
+    exportToExcel(
+      billData,
+      [
+        { header: "Bill Name", key: "name", width: 25 },
+        { header: "Type", key: "type", width: 10 },
+        { header: "Date", key: "date", width: 12 },
+        { header: "Agent", key: "agent", width: 20 },
+        { header: "Total Amount (SAR)", key: "totalAmount", width: 18 },
+        { header: "Paid Amount (SAR)", key: "paidAmount", width: 18 },
+        { header: "Dues (SAR)", key: "dues", width: 15 },
+      ],
+      "income-expense-report"
+    );
   }
 
-  // Calculate summary
-  const totalIncome = filteredBills
-    .filter((b) => b.type === "income")
-    .reduce((sum, b) => sum + b.totalAmount, 0);
-  const totalExpense = filteredBills
-    .filter((b) => b.type === "expense")
-    .reduce((sum, b) => sum + b.totalAmount, 0);
-  const totalPaidIncome = filteredBills
-    .filter((b) => b.type === "income")
-    .reduce((sum, b) => sum + b.paidAmount, 0);
-  const totalPaidExpense = filteredBills
-    .filter((b) => b.type === "expense")
-    .reduce((sum, b) => sum + b.paidAmount, 0);
-  const netProfit = totalIncome - totalExpense;
-
-  if (loading) {
+  if (loading && !reportData) {
     return <LoadingSpinner fullScreen />;
   }
 
@@ -134,145 +149,175 @@ export default function IncomeExpenseReportsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Income & Expense Reports</h1>
-        <Button onClick={downloadExcel} disabled={filteredBills.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Download Excel
-        </Button>
+        {reportData && (
+          <Button onClick={downloadExcel}>
+            <Download className="h-4 w-4 mr-2" />
+            Download Excel
+          </Button>
+        )}
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">
-              Total Income
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-green-900">
-                {formatCurrency(totalIncome)}
-              </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+      {/* Filters Card */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <Label htmlFor="startDate">Start Date (Optional)</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, startDate: e.target.value })
+                }
+              />
             </div>
-            <p className="text-xs text-green-600 mt-1">
-              Paid: {formatCurrency(totalPaidIncome)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-700">
-              Total Expense
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold text-red-900">
-                {formatCurrency(totalExpense)}
-              </div>
-              <TrendingDown className="h-8 w-8 text-red-600" />
+            <div>
+              <Label htmlFor="endDate">End Date (Optional)</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={dateRange.endDate}
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, endDate: e.target.value })
+                }
+              />
             </div>
-            <p className="text-xs text-red-600 mt-1">
-              Paid: {formatCurrency(totalPaidExpense)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className={`bg-gradient-to-br ${
-            netProfit >= 0
-              ? "from-blue-50 to-blue-100 border-blue-200"
-              : "from-orange-50 to-orange-100 border-orange-200"
-          }`}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle
-              className={`text-sm font-medium ${
-                netProfit >= 0 ? "text-blue-700" : "text-orange-700"
-              }`}
-            >
-              Net Profit/Loss
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div
-                className={`text-2xl font-bold ${
-                  netProfit >= 0 ? "text-blue-900" : "text-orange-900"
-                }`}
+            <div>
+              <Label htmlFor="billType">Bill Type (Optional)</Label>
+              <Select
+                value={filters.billType || undefined}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, billType: value === "all" ? "" : value })
+                }
               >
-                {formatCurrency(netProfit)}
-              </div>
-              <TrendingUp
-                className={`h-8 w-8 ${netProfit >= 0 ? "text-blue-600" : "text-orange-600"}`}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="dateFrom">From Date</Label>
-              <Input
-                id="dateFrom"
-                type="date"
-                value={dateRange.from}
-                onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="dateTo">To Date</Label>
-              <Input
-                id="dateTo"
-                type="date"
-                value={dateRange.to}
-                onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="filterType">Type</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Transactions</SelectItem>
-                  <SelectItem value="income">Income Only</SelectItem>
-                  <SelectItem value="expense">Expense Only</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="employeeId">Agent (Optional)</Label>
+              <Select
+                value={filters.employeeId || undefined}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, employeeId: value === "all" ? "" : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Agents" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Agents</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp._id} value={emp._id}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={fetchReport} disabled={loading} className="w-full">
+                {loading ? "Loading..." : "Generate Report"}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+      {/* Report Results */}
+      {reportData && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-700">
+                  Total Income
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-900">
+                  {formatCurrency(reportData.summary.totalIncome)}
+                </div>
+                <p className="text-xs text-green-700 mt-1">
+                  Paid: {formatCurrency(reportData.summary.paidIncome)} | Dues:{" "}
+                  {formatCurrency(reportData.summary.duesIncome)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-red-700">
+                  Total Expense
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-900">
+                  {formatCurrency(reportData.summary.totalExpense)}
+                </div>
+                <p className="text-xs text-red-700 mt-1">
+                  Paid: {formatCurrency(reportData.summary.paidExpense)} | Dues:{" "}
+                  {formatCurrency(reportData.summary.duesExpense)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card
+              className={`bg-gradient-to-br ${
+                reportData.summary.netTotal >= 0
+                  ? "from-blue-50 to-blue-100 border-blue-200"
+                  : "from-orange-50 to-orange-100 border-orange-200"
+              }`}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle
+                  className={`text-sm font-medium ${
+                    reportData.summary.netTotal >= 0 ? "text-blue-700" : "text-orange-700"
+                  }`}
+                >
+                  Net
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className={`text-2xl font-bold ${
+                    reportData.summary.netTotal >= 0
+                      ? "text-blue-900"
+                      : "text-orange-900"
+                  }`}
+                >
+                  {formatCurrency(reportData.summary.netTotal)}
+                </div>
+                <p
+                  className={`text-xs mt-1 ${
+                    reportData.summary.netTotal >= 0 ? "text-blue-700" : "text-orange-700"
+                  }`}
+                >
+                  Paid: {formatCurrency(reportData.summary.netPaid)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Data Table */}
+          <div className="bg-white rounded-lg shadow overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
+                    Bill Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Name
+                    Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Agent
@@ -286,62 +331,61 @@ export default function IncomeExpenseReportsPage() {
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                     Dues
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBills.map((bill) => (
+                {reportData.bills.map((bill) => (
                   <tr key={bill._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(bill.date)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <Badge variant={bill.type === "income" ? "default" : "secondary"}>
-                        {bill.type}
-                      </Badge>
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {bill.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          bill.type === "income"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {bill.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(bill.date)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {bill.employeeId?.name || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                       {formatCurrency(bill.totalAmount)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                       {formatCurrency(bill.paidAmount)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-semibold">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
                       {formatCurrency(bill.totalAmount - bill.paidAmount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                      <Badge
-                        variant={
-                          getPaymentStatus(bill.totalAmount, bill.paidAmount) === "paid"
-                            ? "success"
-                            : getPaymentStatus(bill.totalAmount, bill.paidAmount) === "partial"
-                            ? "warning"
-                            : "danger"
-                        }
-                      >
-                        {getPaymentStatus(bill.totalAmount, bill.paidAmount)}
-                      </Badge>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {filteredBills.length === 0 && (
+            {reportData.bills.length === 0 && (
               <div className="text-center py-12 text-gray-500">
                 No transactions found for the selected filters
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {/* Initial State Message */}
+      {!reportData && !loading && (
+        <div className="bg-white rounded-lg shadow p-12">
+          <div className="text-center text-gray-500">
+            <p className="text-lg font-medium">Set your filters and click "Generate Report" to view the income and expense report</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

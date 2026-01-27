@@ -20,9 +20,22 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, ChevronDown, ChevronRight, Car, Check, X } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  Car,
+  Check,
+  X,
+} from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import {
+  SearchableSelect,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select";
 import { Pagination } from "@/components/ui/pagination";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { toast } from "sonner";
@@ -31,7 +44,7 @@ import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 import { useYearFilter } from "@/contexts/YearFilterContext";
 import { log } from "console";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 interface Installment {
   _id: string;
@@ -69,7 +82,9 @@ export default function PaymentsPage() {
 
   const [payments, setPayments] = useState<PaymentWithInstallments[]>([]);
   const [vehicleGroups, setVehicleGroups] = useState<VehiclePaymentGroup[]>([]);
-  const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>([]);
+  const [filteredGroups, setFilteredGroups] = useState<VehiclePaymentGroup[]>(
+    [],
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -85,10 +100,16 @@ export default function PaymentsPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
-  const [selectedPayment, setSelectedPayment] = useState<PaymentWithInstallments | null>(null);
-  const [editingInstallment, setEditingInstallment] = useState<Installment | null>(null);
-  const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(new Set());
-  const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [selectedPayment, setSelectedPayment] =
+    useState<PaymentWithInstallments | null>(null);
+  const [editingInstallment, setEditingInstallment] =
+    useState<Installment | null>(null);
+  const [expandedVehicles, setExpandedVehicles] = useState<Set<string>>(
+    new Set(),
+  );
+  const [expandedPayments, setExpandedPayments] = useState<Set<string>>(
+    new Set(),
+  );
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     open: boolean;
     type: "payment" | "installment" | null;
@@ -116,7 +137,7 @@ export default function PaymentsPage() {
   useEffect(() => {
     fetchPayments();
   }, []);
-console.log(payments);
+  console.log(payments);
 
   // Refetch when status filter changes
   useEffect(() => {
@@ -134,9 +155,9 @@ console.log(payments);
 
   // Handle status filter toggle
   function toggleStatusFilter(status: string) {
-    setStatusFilter(prev => {
+    setStatusFilter((prev) => {
       if (prev.includes(status)) {
-        return prev.filter(s => s !== status);
+        return prev.filter((s) => s !== status);
       } else {
         return [...prev, status];
       }
@@ -144,13 +165,14 @@ console.log(payments);
   }
 
   // Filter vehicles from context based on search term
-  const searchedVehicles = vehicleSearchTerm.trim() === ""
-    ? contextVehicles
-    : contextVehicles.filter((v) =>
-        v.number.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) ||
-        v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase())
-      );
-console.log(filteredGroups);
+  const searchedVehicles =
+    vehicleSearchTerm.trim() === ""
+      ? contextVehicles
+      : contextVehicles.filter(
+          (v) =>
+            v.number.toLowerCase().includes(vehicleSearchTerm.toLowerCase()) ||
+            v.name.toLowerCase().includes(vehicleSearchTerm.toLowerCase()),
+        );
 
   useEffect(() => {
     // Group payments by vehicle
@@ -205,7 +227,7 @@ console.log(filteredGroups);
   async function fetchPayments(
     page = pagination.currentPage,
     limit = pagination.itemsPerPage,
-    search = searchTerm
+    search = searchTerm,
   ) {
     try {
       setIsLoading(true);
@@ -220,7 +242,7 @@ console.log(filteredGroups);
       }
 
       // Add status filters to API call if any are selected
-      statusFilter.forEach(status => {
+      statusFilter.forEach((status) => {
         params.append("status", status);
       });
 
@@ -270,16 +292,21 @@ console.log(filteredGroups);
         }
 
         // Map payments with their installments
-        const paymentsWithInstallments = paymentsData.data.map((payment: Payment) => {
-          const installments = installmentsByPaymentId[payment._id] || [];
-          const paidAmount = installments.reduce((sum: number, inst: Installment) => sum + inst.amount, 0);
-          return {
-            ...payment,
-            installments,
-            paidAmount,
-            dues: payment.totalAmount - paidAmount,
-          };
-        });
+        const paymentsWithInstallments = paymentsData.data.map(
+          (payment: Payment) => {
+            const installments = installmentsByPaymentId[payment._id] || [];
+            const paidAmount = installments.reduce(
+              (sum: number, inst: Installment) => sum + inst.amount,
+              0,
+            );
+            return {
+              ...payment,
+              installments,
+              paidAmount,
+              dues: payment.totalAmount - paidAmount,
+            };
+          },
+        );
 
         setPayments(paymentsWithInstallments);
       }
@@ -289,7 +316,6 @@ console.log(filteredGroups);
       setIsLoading(false);
     }
   }
-
 
   function validatePaymentForm() {
     const newErrors: Record<string, string> = {};
@@ -351,7 +377,11 @@ console.log(filteredGroups);
       const data = await res.json();
 
       if (data.success) {
-        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
+        fetchPayments(
+          pagination.currentPage,
+          pagination.itemsPerPage,
+          searchTerm,
+        );
         handleClosePaymentDialog();
       } else {
         setErrors({ submit: data.error });
@@ -387,7 +417,11 @@ console.log(filteredGroups);
       const data = await res.json();
 
       if (data.success) {
-        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
+        fetchPayments(
+          pagination.currentPage,
+          pagination.itemsPerPage,
+          searchTerm,
+        );
         handleCloseInstallmentDialog();
       } else {
         setErrors({ submit: data.error });
@@ -406,15 +440,22 @@ console.log(filteredGroups);
     if (!deleteConfirmation.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/payments/${deleteConfirmation.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_URL}/api/payments/${deleteConfirmation.id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       const data = await res.json();
 
       if (data.success) {
         toast.success("Payment deleted successfully");
-        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
+        fetchPayments(
+          pagination.currentPage,
+          pagination.itemsPerPage,
+          searchTerm,
+        );
       } else {
         toast.error(data.error || "Failed to delete payment");
       }
@@ -434,15 +475,22 @@ console.log(filteredGroups);
     if (!deleteConfirmation.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/installments/${deleteConfirmation.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_URL}/api/installments/${deleteConfirmation.id}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       const data = await res.json();
 
       if (data.success) {
         toast.success("Installment deleted successfully");
-        fetchPayments(pagination.currentPage, pagination.itemsPerPage, searchTerm);
+        fetchPayments(
+          pagination.currentPage,
+          pagination.itemsPerPage,
+          searchTerm,
+        );
       } else {
         toast.error(data.error || "Failed to delete installment");
       }
@@ -484,7 +532,10 @@ console.log(filteredGroups);
     setErrors({});
   }
 
-  function handleOpenInstallmentDialog(payment: PaymentWithInstallments, installment?: Installment) {
+  function handleOpenInstallmentDialog(
+    payment: PaymentWithInstallments,
+    installment?: Installment,
+  ) {
     setSelectedPayment(payment);
     if (installment) {
       setEditingInstallment(installment);
@@ -513,7 +564,7 @@ console.log(filteredGroups);
   }
 
   function toggleVehicleExpand(vehicleId: string) {
-    setExpandedVehicles(prev => {
+    setExpandedVehicles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(vehicleId)) {
         newSet.delete(vehicleId);
@@ -525,7 +576,7 @@ console.log(filteredGroups);
   }
 
   function togglePaymentExpand(paymentId: string) {
-    setExpandedPayments(prev => {
+    setExpandedPayments((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(paymentId)) {
         newSet.delete(paymentId);
@@ -542,8 +593,8 @@ console.log(filteredGroups);
       status === "paid"
         ? "success"
         : status === "partial"
-        ? "warning"
-        : "danger";
+          ? "warning"
+          : "danger";
     return <Badge variant={variant}>{status}</Badge>;
   }
 
@@ -639,7 +690,9 @@ console.log(filteredGroups);
             onClick={() => toggleStatusFilter("paid")}
             className="h-10"
           >
-            {statusFilter.includes("paid") && <Check className="mr-2 h-4 w-4" />}
+            {statusFilter.includes("paid") && (
+              <Check className="mr-2 h-4 w-4" />
+            )}
             Paid
           </Button>
           <Button
@@ -648,7 +701,9 @@ console.log(filteredGroups);
             onClick={() => toggleStatusFilter("unpaid")}
             className="h-10"
           >
-            {statusFilter.includes("unpaid") && <Check className="mr-2 h-4 w-4" />}
+            {statusFilter.includes("unpaid") && (
+              <Check className="mr-2 h-4 w-4" />
+            )}
             Unpaid
           </Button>
           <Button
@@ -657,7 +712,9 @@ console.log(filteredGroups);
             onClick={() => toggleStatusFilter("partial")}
             className="h-10"
           >
-            {statusFilter.includes("partial") && <Check className="mr-2 h-4 w-4" />}
+            {statusFilter.includes("partial") && (
+              <Check className="mr-2 h-4 w-4" />
+            )}
             Partial
           </Button>
           {statusFilter.length > 0 && (
@@ -704,7 +761,9 @@ console.log(filteredGroups);
                         <h3 className="text-xl font-bold text-blue-900">
                           {group.vehicle.number}
                         </h3>
-                        <p className="text-sm text-blue-700">{group.vehicle.name}</p>
+                        <p className="text-sm text-blue-700">
+                          {group.vehicle.name}
+                        </p>
                       </div>
                     </div>
                     {getStatusBadge(group.totalAmount, group.totalPaid)}
@@ -734,7 +793,9 @@ console.log(filteredGroups);
                 {isVehicleExpanded && (
                   <div className="mt-6 space-y-3">
                     {group.payments.map((payment) => {
-                      const isPaymentExpanded = expandedPayments.has(payment._id);
+                      const isPaymentExpanded = expandedPayments.has(
+                        payment._id,
+                      );
                       return (
                         <div
                           key={payment._id}
@@ -758,17 +819,24 @@ console.log(filteredGroups);
                                   <p className="text-sm font-semibold text-gray-900">
                                     Payment Record - {formatDate(payment.date)}
                                   </p>
-                                  {getStatusBadge(payment.totalAmount, payment.paidAmount)}
+                                  {getStatusBadge(
+                                    payment.totalAmount,
+                                    payment.paidAmount,
+                                  )}
                                 </div>
                                 {payment.remarks && (
-                                  <p className="text-xs text-gray-500 mt-1">{payment.remarks}</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {payment.remarks}
+                                  </p>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center space-x-6">
                               <div className="text-right">
                                 <p className="text-xs text-gray-500">Total</p>
-                                <p className="text-sm font-semibold">{formatCurrency(payment.totalAmount)}</p>
+                                <p className="text-sm font-semibold">
+                                  {formatCurrency(payment.totalAmount)}
+                                </p>
                               </div>
                               <div className="text-right">
                                 <p className="text-xs text-gray-500">Paid</p>
@@ -786,7 +854,9 @@ console.log(filteredGroups);
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleOpenInstallmentDialog(payment)}
+                                  onClick={() =>
+                                    handleOpenInstallmentDialog(payment)
+                                  }
                                   className="text-xs"
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
@@ -795,14 +865,18 @@ console.log(filteredGroups);
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleOpenPaymentDialog(payment)}
+                                  onClick={() =>
+                                    handleOpenPaymentDialog(payment)
+                                  }
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeletePayment(payment._id)}
+                                  onClick={() =>
+                                    handleDeletePayment(payment._id)
+                                  }
                                 >
                                   <Trash2 className="h-4 w-4 text-red-500" />
                                 </Button>
@@ -835,41 +909,58 @@ console.log(filteredGroups);
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-amber-100">
-                                      {payment.installments.map((installment) => (
-                                        <tr key={installment._id} className="hover:bg-amber-100">
-                                          <td className="px-4 py-2 text-sm text-gray-900">
-                                            {formatDate(installment.date)}
-                                          </td>
-                                          <td className="px-4 py-2 text-sm font-semibold text-green-600">
-                                            {formatCurrency(installment.amount)}
-                                          </td>
-                                          <td className="px-4 py-2 text-sm text-gray-600">
-                                            {installment.remarks || "-"}
-                                          </td>
-                                          <td className="px-4 py-2 text-right">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleOpenInstallmentDialog(payment, installment)}
-                                            >
-                                              <Edit className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleDeleteInstallment(installment._id)}
-                                            >
-                                              <Trash2 className="h-3 w-3 text-red-500" />
-                                            </Button>
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {payment.installments.map(
+                                        (installment) => (
+                                          <tr
+                                            key={installment._id}
+                                            className="hover:bg-amber-100"
+                                          >
+                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                              {formatDate(installment.date)}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm font-semibold text-green-600">
+                                              {formatCurrency(
+                                                installment.amount,
+                                              )}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-600">
+                                              {installment.remarks || "-"}
+                                            </td>
+                                            <td className="px-4 py-2 text-right">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleOpenInstallmentDialog(
+                                                    payment,
+                                                    installment,
+                                                  )
+                                                }
+                                              >
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() =>
+                                                  handleDeleteInstallment(
+                                                    installment._id,
+                                                  )
+                                                }
+                                              >
+                                                <Trash2 className="h-3 w-3 text-red-500" />
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        ),
+                                      )}
                                     </tbody>
                                   </table>
                                 </div>
                               ) : (
                                 <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500 text-center border border-gray-200">
-                                  No payment history yet. Click "Add Installment" to record a payment.
+                                  No payment history yet. Click "Add
+                                  Installment" to record a payment.
                                 </div>
                               )}
                             </div>
@@ -936,7 +1027,9 @@ console.log(filteredGroups);
                   </p>
                 )}
                 {errors.vehicleId && (
-                  <p className="text-sm text-red-500 mt-1">{errors.vehicleId}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.vehicleId}
+                  </p>
                 )}
               </div>
               <div>
@@ -947,11 +1040,16 @@ console.log(filteredGroups);
                   step="0.01"
                   value={paymentFormData.totalAmount}
                   onChange={(e) =>
-                    setPaymentFormData({ ...paymentFormData, totalAmount: e.target.value })
+                    setPaymentFormData({
+                      ...paymentFormData,
+                      totalAmount: e.target.value,
+                    })
                   }
                 />
                 {errors.totalAmount && (
-                  <p className="text-sm text-red-500 mt-1">{errors.totalAmount}</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.totalAmount}
+                  </p>
                 )}
               </div>
               <div>
@@ -961,7 +1059,10 @@ console.log(filteredGroups);
                   type="date"
                   value={paymentFormData.date}
                   onChange={(e) =>
-                    setPaymentFormData({ ...paymentFormData, date: e.target.value })
+                    setPaymentFormData({
+                      ...paymentFormData,
+                      date: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -971,7 +1072,10 @@ console.log(filteredGroups);
                   id="remarks"
                   value={paymentFormData.remarks}
                   onChange={(e) =>
-                    setPaymentFormData({ ...paymentFormData, remarks: e.target.value })
+                    setPaymentFormData({
+                      ...paymentFormData,
+                      remarks: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -980,7 +1084,11 @@ console.log(filteredGroups);
               )}
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={handleClosePaymentDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClosePaymentDialog}
+              >
                 Cancel
               </Button>
               <Button type="submit">
@@ -992,7 +1100,10 @@ console.log(filteredGroups);
       </Dialog>
 
       {/* Installment Dialog */}
-      <Dialog open={isInstallmentDialogOpen} onOpenChange={setIsInstallmentDialogOpen}>
+      <Dialog
+        open={isInstallmentDialogOpen}
+        onOpenChange={setIsInstallmentDialogOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -1000,9 +1111,13 @@ console.log(filteredGroups);
             </DialogTitle>
             {selectedPayment && (
               <p className="text-sm text-gray-500">
-                Payment: {selectedPayment.vehicleId ? selectedPayment.vehicleId.number : "Deleted Vehicle"} - {formatCurrency(selectedPayment.totalAmount)} |
-                Paid: {formatCurrency(selectedPayment.paidAmount)} |
-                Remaining: {formatCurrency(selectedPayment.dues)}
+                Payment:{" "}
+                {selectedPayment.vehicleId
+                  ? selectedPayment.vehicleId.number
+                  : "Deleted Vehicle"}{" "}
+                - {formatCurrency(selectedPayment.totalAmount)} | Paid:{" "}
+                {formatCurrency(selectedPayment.paidAmount)} | Remaining:{" "}
+                {formatCurrency(selectedPayment.dues)}
               </p>
             )}
           </DialogHeader>
@@ -1016,7 +1131,10 @@ console.log(filteredGroups);
                   step="0.01"
                   value={installmentFormData.amount}
                   onChange={(e) =>
-                    setInstallmentFormData({ ...installmentFormData, amount: e.target.value })
+                    setInstallmentFormData({
+                      ...installmentFormData,
+                      amount: e.target.value,
+                    })
                   }
                 />
                 {errors.amount && (
@@ -1030,7 +1148,10 @@ console.log(filteredGroups);
                   type="date"
                   value={installmentFormData.date}
                   onChange={(e) =>
-                    setInstallmentFormData({ ...installmentFormData, date: e.target.value })
+                    setInstallmentFormData({
+                      ...installmentFormData,
+                      date: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -1040,7 +1161,10 @@ console.log(filteredGroups);
                   id="installmentRemarks"
                   value={installmentFormData.remarks}
                   onChange={(e) =>
-                    setInstallmentFormData({ ...installmentFormData, remarks: e.target.value })
+                    setInstallmentFormData({
+                      ...installmentFormData,
+                      remarks: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -1049,7 +1173,11 @@ console.log(filteredGroups);
               )}
             </div>
             <DialogFooter className="mt-6">
-              <Button type="button" variant="outline" onClick={handleCloseInstallmentDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseInstallmentDialog}
+              >
                 Cancel
               </Button>
               <Button type="submit">
