@@ -5,6 +5,7 @@ import { YearFilterProvider } from "@/contexts/YearFilterContext";
 import { VehicleProvider } from "@/contexts/VehicleContext";
 import { EmployeeProvider } from "@/contexts/EmployeeContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
+import { AuthInterceptor } from "@/components/auth-interceptor";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <AuthInterceptor />
         <YearFilterProvider>
           <VehicleProvider>
             <EmployeeProvider>

@@ -17,5 +17,10 @@ export async function apiRequest(
   };
 
   const response = await fetch(url, { ...defaultOptions, ...options });
+
+  if (response.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login';
+  }
+
   return response;
 }
