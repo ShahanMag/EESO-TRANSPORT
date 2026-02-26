@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +12,6 @@ import Image from "next/image";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -56,9 +54,8 @@ export default function LoginPage() {
 
       if (data.success) {
         toast.success("Login successful! Redirecting...");
-        // Redirect to dashboard
-        router.push("/");
-        router.refresh();
+        // Full page reload so all context providers remount with valid auth
+        window.location.href = "/";
       } else {
         toast.error(data.error || "Login failed");
         setErrors({ submit: data.error || "Login failed" });
