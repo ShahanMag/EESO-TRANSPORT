@@ -44,7 +44,7 @@ import { apiRequest } from "@/lib/api-config";
 import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function EmployeesPage() {
   const { employees: contextEmployees, loading: contextLoading, refetchEmployees, pagination: contextPagination, goToPage, setItemsPerPage } = useEmployees();
@@ -168,7 +168,6 @@ export default function EmployeesPage() {
 
       const res = await fetch(`${API_URL}${url}`, {
         method,
-        credentials: "include",
         body: formDataToSend,
       });
 
@@ -197,7 +196,6 @@ export default function EmployeesPage() {
             await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              credentials: "include",
               body: JSON.stringify({
                 number: vehicle.number,
                 name: vehicle.name,
@@ -221,7 +219,6 @@ export default function EmployeesPage() {
             await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              credentials: "include",
               body: JSON.stringify({
                 number: vehicle.number,
                 name: vehicle.name,
@@ -269,7 +266,6 @@ export default function EmployeesPage() {
     try {
       const res = await fetch(`${API_URL}/api/employees/${deletingEmployee._id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -311,7 +307,6 @@ export default function EmployeesPage() {
         await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             number: vehicle.number,
             name: vehicle.name,
@@ -326,7 +321,6 @@ export default function EmployeesPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             terminationDate: terminateFormData.date,
             terminationReason: terminateFormData.reason,
@@ -358,7 +352,6 @@ export default function EmployeesPage() {
   async function handleViewEmployee(employee: Employee) {
     try {
       const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -379,7 +372,6 @@ export default function EmployeesPage() {
       // Fetch complete employee data from API
       try {
         const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
-          credentials: "include",
         });
         const data = await res.json();
 
@@ -661,7 +653,6 @@ export default function EmployeesPage() {
       const res = await fetch(`${API_URL}/api/employees/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ employees: parsedEmployees }),
       });
 

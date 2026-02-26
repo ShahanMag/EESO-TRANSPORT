@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { useYearFilter } from "@/contexts/YearFilterContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface Installment {
   _id: string;
@@ -151,7 +151,6 @@ export default function BillsPage() {
       const url = `${API_URL}/api/bills${queryString ? `?${queryString}` : ""}`;
 
       const res = await fetch(url, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -171,7 +170,6 @@ export default function BillsPage() {
   async function fetchEmployees() {
     try {
       const res = await fetch(`${API_URL}/api/employees`, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -231,7 +229,6 @@ export default function BillsPage() {
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           type: formData.type,
           name: formData.name,
@@ -274,7 +271,6 @@ export default function BillsPage() {
     try {
       const res = await fetch(`${API_URL}/api/bills/${deleteConfirmation.id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -342,7 +338,6 @@ export default function BillsPage() {
       const res = await fetch(`${API_URL}/api/installments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           billId: selectedBillForInstallments._id,
           amount: parseFloat(installmentFormData.amount),
@@ -373,7 +368,6 @@ export default function BillsPage() {
     try {
       const res = await fetch(`${API_URL}/api/installments/${installmentId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 

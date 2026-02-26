@@ -33,7 +33,7 @@ import { exportToExcel } from "@/lib/excel-utils";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function VehiclesPage() {
   const router = useRouter();
@@ -129,7 +129,6 @@ export default function VehiclesPage() {
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           number: formData.number,
           name: formData.name,
@@ -185,7 +184,6 @@ export default function VehiclesPage() {
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${deletingVehicleId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -209,7 +207,6 @@ export default function VehiclesPage() {
       // Fetch complete vehicle data from API
       try {
         const res = await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
-          credentials: "include",
         });
         const data = await res.json();
 
@@ -304,7 +301,6 @@ export default function VehiclesPage() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify(terminateFormData),
         }
       );
@@ -621,7 +617,6 @@ export default function VehiclesPage() {
       const res = await fetch(`${API_URL}/api/vehicles/bulk`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ vehicles: parsedVehicles }),
       });
 

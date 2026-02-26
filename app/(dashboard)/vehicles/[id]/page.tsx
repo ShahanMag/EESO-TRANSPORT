@@ -29,7 +29,7 @@ import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { toast } from "sonner";
 import { useVehicles } from "@/contexts/VehicleContext";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface Vehicle {
   _id: string;
@@ -106,7 +106,6 @@ export default function VehicleDetailPage() {
   async function fetchVehicleDetails() {
     try {
       const res = await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -127,10 +126,8 @@ export default function VehicleDetailPage() {
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
         fetch(`${API_URL}/api/payments?vehicleId=${vehicleId}`, {
-          credentials: "include",
         }),
         fetch(`${API_URL}/api/installments`, {
-          credentials: "include",
         }),
       ]);
 
@@ -179,7 +176,6 @@ export default function VehicleDetailPage() {
       const res = await fetch(`${API_URL}/api/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           vehicleId: vehicleId,
           totalAmount: parseFloat(paymentFormData.totalAmount),
@@ -215,7 +211,6 @@ export default function VehicleDetailPage() {
       const res = await fetch(`${API_URL}/api/installments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           paymentId: selectedPayment._id,
           amount: parseFloat(installmentFormData.amount),
@@ -284,7 +279,6 @@ export default function VehicleDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/payments/${deletingPaymentId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -314,7 +308,6 @@ export default function VehicleDetailPage() {
     try {
       const res = await fetch(`${API_URL}/api/installments/${deletingInstallmentId}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 

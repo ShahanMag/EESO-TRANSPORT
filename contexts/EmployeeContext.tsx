@@ -36,7 +36,7 @@ interface EmployeeContextType {
 const EmployeeContext = createContext<EmployeeContextType | undefined>(undefined);
 
 export function EmployeeProvider({ children }: { children: React.ReactNode }) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const { selectedYear } = useYearFilter();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -71,7 +71,6 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
       });
 
       const res = await fetch(`${API_URL}/api/employees?${params.toString()}`, {
-        credentials: "include",
       });
       const data = await res.json();
 

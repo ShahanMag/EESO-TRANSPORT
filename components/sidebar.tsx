@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const topNavigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -73,7 +73,6 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   async function fetchUser() {
     try {
       const res = await fetch(`${API_URL}/api/auth/me`, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -89,7 +88,6 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
       setLoggingOut(true);
       const res = await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
-        credentials: "include",
       });
       const data = await res.json();
 

@@ -19,7 +19,7 @@ import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import { exportToExcel } from "@/lib/excel-utils";
 import { toast } from "sonner";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface Employee {
   _id: string;
@@ -71,7 +71,6 @@ export default function IncomeExpenseReportsPage() {
   async function fetchEmployees() {
     try {
       const res = await fetch(`${API_URL}/api/employees?limit=1000&type=agent`, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -95,7 +94,6 @@ export default function IncomeExpenseReportsPage() {
       const url = `/api/reports/bills?${params.toString()}`;
 
       const res = await fetch(`${API_URL}${url}`, {
-        credentials: "include",
       });
       const data = await res.json();
 

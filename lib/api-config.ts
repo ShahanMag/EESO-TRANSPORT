@@ -1,5 +1,7 @@
 // API Configuration for connecting frontend to backend
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+import { getToken } from './auth-token';
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 // Helper function for making API requests
 export async function apiRequest(
@@ -8,10 +10,13 @@ export async function apiRequest(
 ) {
   const url = `${API_BASE_URL}${endpoint}`;
 
+  const token = getToken();
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
   const defaultOptions: RequestInit = {
-    credentials: 'include', // Important: Include cookies for authentication
     headers: {
       'Content-Type': 'application/json',
+      ...authHeader,
       ...options.headers,
     },
   };
