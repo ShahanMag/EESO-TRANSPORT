@@ -44,7 +44,7 @@ import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 import { useYearFilter } from "@/contexts/YearFilterContext";
 import { log } from "console";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 interface Installment {
   _id: string;
@@ -252,10 +252,8 @@ export default function PaymentsPage() {
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
         fetch(`${API_URL}/api/payments?${params.toString()}`, {
-          credentials: "include",
         }),
         fetch(`${API_URL}/api/installments?year=${selectedYear}`, {
-          credentials: "include",
         }),
       ]);
 
@@ -365,7 +363,6 @@ export default function PaymentsPage() {
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           vehicleId: paymentFormData.vehicleId,
           totalAmount: parseFloat(paymentFormData.totalAmount),
@@ -405,7 +402,6 @@ export default function PaymentsPage() {
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           paymentId: selectedPayment._id,
           amount: parseFloat(installmentFormData.amount),
@@ -444,7 +440,6 @@ export default function PaymentsPage() {
         `${API_URL}/api/payments/${deleteConfirmation.id}`,
         {
           method: "DELETE",
-          credentials: "include",
         },
       );
       const data = await res.json();
@@ -479,7 +474,6 @@ export default function PaymentsPage() {
         `${API_URL}/api/installments/${deleteConfirmation.id}`,
         {
           method: "DELETE",
-          credentials: "include",
         },
       );
       const data = await res.json();

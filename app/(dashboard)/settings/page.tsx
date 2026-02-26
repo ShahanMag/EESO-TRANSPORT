@@ -23,7 +23,7 @@ import { Plus, UserCog, Shield, Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface Admin {
   _id: string;
@@ -55,7 +55,6 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const res = await fetch(`${API_URL}/api/admins`, {
-        credentials: "include",
       });
       const data = await res.json();
       if (data.success) {
@@ -72,7 +71,6 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${API_URL}/api/admins/init`, {
         method: "POST",
-        credentials: "include",
       });
       const data = await res.json();
 
@@ -133,7 +131,6 @@ export default function SettingsPage() {
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -193,7 +190,6 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${API_URL}/api/admins/${deletingAdmin._id}`, {
         method: "DELETE",
-        credentials: "include",
       });
       const data = await res.json();
 

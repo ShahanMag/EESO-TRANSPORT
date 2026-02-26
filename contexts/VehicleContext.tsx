@@ -43,7 +43,7 @@ interface VehicleContextType {
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export function VehicleProvider({ children }: { children: React.ReactNode }) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const { selectedYear } = useYearFilter();
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -111,7 +111,6 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
 
       const url = `/api/vehicles?${params.toString()}`;
       const res = await fetch(`${API_URL}${url}`, {
-        credentials: "include",
       });
       const data = await res.json();
 

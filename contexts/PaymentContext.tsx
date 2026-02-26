@@ -23,7 +23,7 @@ interface PaymentContextType {
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
 
 export function PaymentProvider({ children }: { children: React.ReactNode }) {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   const { selectedYear } = useYearFilter();
 
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -54,7 +54,6 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(
         `${API_URL}/api/payments?${params.toString()}`,
         {
-          credentials: "include",
         }
       );
       const data = await res.json();
