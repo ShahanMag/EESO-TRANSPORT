@@ -49,14 +49,9 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     itemsPerPage: 100,
   });
 
-  // Initial fetch on mount
+  // Fetch on mount and refetch when year changes
   useEffect(() => {
-    fetchEmployees(1, 100);
-  }, []);
-
-  // Refetch when year changes
-  useEffect(() => {
-    fetchEmployees(pagination.currentPage, pagination.itemsPerPage);
+    fetchEmployees(1, pagination.itemsPerPage);
   }, [selectedYear]);
 
   async function fetchEmployees(page = 1, limit = 100) {

@@ -60,14 +60,9 @@ export function VehicleProvider({ children }: { children: React.ReactNode }) {
   const [searchTerm, setSearchTermState] = useState<string>("");
   const [pendingSearch, setPendingSearchState] = useState<string>("");
 
-  // Initial fetch on mount
+  // Fetch on mount and refetch when year changes
   useEffect(() => {
-    fetchVehicles(1, 100, showTerminated);
-  }, []);
-
-  // Refetch when year changes
-  useEffect(() => {
-    fetchVehicles(pagination.currentPage, pagination.itemsPerPage, showTerminated, assignedFilter, searchTerm);
+    fetchVehicles(1, pagination.itemsPerPage, showTerminated, assignedFilter, searchTerm);
   }, [selectedYear]);
 
   // Debounce search - only call API after user stops typing for 500ms
