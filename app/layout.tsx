@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { YearFilterProvider } from "@/contexts/YearFilterContext";
-import { VehicleProvider } from "@/contexts/VehicleContext";
-import { EmployeeProvider } from "@/contexts/EmployeeContext";
-import { PaymentProvider } from "@/contexts/PaymentContext";
 import { AuthInterceptor } from "@/components/auth-interceptor";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -28,13 +25,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthInterceptor />
         <YearFilterProvider>
-          <VehicleProvider>
-            <EmployeeProvider>
-              <PaymentProvider>
-                {children}
-              </PaymentProvider>
-            </EmployeeProvider>
-          </VehicleProvider>
+          {children}
         </YearFilterProvider>
       </body>
     </html>

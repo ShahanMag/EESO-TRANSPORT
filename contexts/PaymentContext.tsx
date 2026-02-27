@@ -30,12 +30,7 @@ export function PaymentProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initial fetch on mount
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  // Refetch when year changes
+  // Fetch on mount and refetch when year changes
   useEffect(() => {
     fetchPayments();
   }, [selectedYear]);
