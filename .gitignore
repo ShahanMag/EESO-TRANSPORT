@@ -34,3 +34,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.jetro
+.windsurfrules
+.mcp.json
+.github
+.claude
+.cursor
+.agents
+CLAUDE.md
+AGENT.md

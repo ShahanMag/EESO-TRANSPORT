@@ -72,6 +72,9 @@ export default function EmployeesPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [parsedEmployees, setParsedEmployees] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [serverErrors, setServerErrors] = useState<
+    Array<{ row: number; name?: string; iqamaId?: string; error: string }>
+  >([]);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [terminatingEmployee, setTerminatingEmployee] =
     useState<Employee | null>(null);
@@ -485,20 +488,52 @@ export default function EmployeesPage() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
       const employees: any[] = [];
       const errors: string[] = [];
 
+      // Clear any failures shown from a previous upload attempt
+      setServerErrors([]);
+
+      // Guard: if the header row doesn't match the template, every row would
+      // otherwise fail with a confusing "missing required fields" message.
+      const EXPECTED_HEADERS = [
+        "Name",
+        "Iqama ID (10 digits)",
+        "Phone (966XXXXXXXXX) - Optional",
+        "Type (employee/agent)",
+        "Join Date (YYYY-MM-DD)",
+        "Vehicle Number - Optional",
+      ];
+      if (
+        jsonData.length > 0 &&
+        !Object.keys(jsonData[0]).some((key) => EXPECTED_HEADERS.includes(key))
+      ) {
+        setParsedEmployees([]);
+        setValidationErrors([
+          'The column headers don\'t match the template. Please download the template below and keep its header row unchanged (the first row must contain "Name", "Iqama ID (10 digits)", "Type (employee/agent)", etc.).',
+        ]);
+        toast.error("Column headers don't match the template.");
+        return;
+      }
+
       // Validate and prepare all employees first
-      for (const row of jsonData as any[]) {
+      for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
+        const row = jsonData[rowIndex];
+        // Excel row number: +2 because row 1 is the header and arrays are 0-based
+        const rowNum = rowIndex + 2;
         try {
           // Validate required fields (phone is now optional)
-          if (!row.Name || !row["Iqama ID (10 digits)"]) {
+          const missingFields: string[] = [];
+          if (!row.Name) missingFields.push("Name");
+          if (!row["Iqama ID (10 digits)"])
+            missingFields.push("Iqama ID (10 digits)");
+          if (missingFields.length > 0) {
             errors.push(
-              `Row with name "${
-                row.Name || "unknown"
-              }" is missing required fields`
+              `Row ${rowNum}: missing required field${
+                missingFields.length > 1 ? "s" : ""
+              } — ${missingFields.join(", ")}`
             );
             continue;
           }
@@ -507,9 +542,10 @@ export default function EmployeesPage() {
           let phone = row["Phone (966XXXXXXXXX)"]
             ? row["Phone (966XXXXXXXXX)"].toString().trim()
             : "";
-          const type = (
-            row["Type (employee/agent)"] || "employee"
-          ).toLowerCase();
+          const type = (row["Type (employee/agent)"] || "employee")
+            .toString()
+            .trim()
+            .toLowerCase();
 
           // Handle date conversion - Excel can return dates in various formats
           let joinDate = null;
@@ -578,8 +614,11 @@ export default function EmployeesPage() {
 
           // Validate type
           if (type !== "employee" && type !== "agent") {
+            const rawType = row["Type (employee/agent)"];
             errors.push(
-              `Row "${row.Name}": Type must be "employee" or "agent"`
+              `Row ${rowNum} (${row.Name}): Type "${
+                rawType ?? ""
+              }" is not recognized — use "employee" or "agent"`
             );
             continue;
           }
@@ -597,7 +636,7 @@ export default function EmployeesPage() {
 
           employees.push(employeeData);
         } catch (error) {
-          errors.push(`Row "${row.Name}": ${error}`);
+          errors.push(`Row ${rowNum} (${row.Name}): ${error}`);
         }
       }
 
@@ -665,22 +704,38 @@ export default function EmployeesPage() {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       if (result.success) {
-        toast.success(result.message || `Successfully uploaded employee(s)`);
-        if (result.data?.errors && result.data.errors.length > 0) {
-          toast.warning(
-            `${result.data.errors.length} employee(s) failed. Check console for details.`
-          );
-          console.error("Bulk upload errors:", result.data.errors);
+        const serverErrs = result.data?.errors || [];
+        const createdCount = result.data?.created ?? 0;
+
+        if (serverErrs.length > 0) {
+          // Some/all rows were rejected by the server — keep the dialog open and
+          // show exactly which rows failed and why.
+          setServerErrors(serverErrs);
+          if (createdCount > 0) {
+            toast.warning(
+              `${createdCount} uploaded, ${serverErrs.length} failed. See the details below.`
+            );
+          } else {
+            toast.error(
+              `All ${serverErrs.length} row(s) failed. See the details below.`
+            );
+          }
+          refetchEmployees();
+          setParsedEmployees([]);
+          setUploadProgress(0);
+        } else {
+          toast.success(result.message || `Successfully uploaded employee(s)`);
+          refetchEmployees();
+          setIsBulkUploadDialogOpen(false);
+          setParsedEmployees([]);
+          setValidationErrors([]);
+          setServerErrors([]);
+          setUploadProgress(0);
         }
-        refetchEmployees();
-        setIsBulkUploadDialogOpen(false);
-        setParsedEmployees([]);
-        setValidationErrors([]);
-        setUploadProgress(0);
       } else {
         toast.error(result.error || "Failed to upload employees");
-        if (result.data?.errors) {
-          console.error("Bulk upload errors:", result.data.errors);
+        if (result.data?.errors?.length > 0) {
+          setServerErrors(result.data.errors);
         }
       }
     } catch (error) {
@@ -1408,7 +1463,13 @@ export default function EmployeesPage() {
         open={isBulkUploadDialogOpen}
         onOpenChange={setIsBulkUploadDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent
+          className="max-w-2xl max-h-[80vh] flex flex-col"
+          // Prevent the dialog from closing when the native file picker steals
+          // and returns focus (Radix treats that as an "interact outside").
+          // Close via the Close/X buttons or Escape instead.
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Bulk Upload Employees</DialogTitle>
           </DialogHeader>
@@ -1486,21 +1547,49 @@ export default function EmployeesPage() {
                   </div>
                 </div>
 
-                {validationErrors.length > 0 && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <p className="font-semibold text-yellow-800 mb-1">
-                      {validationErrors.length} row(s) had errors:
+              </div>
+            )}
+
+            {/* Rows rejected during file validation (before upload) */}
+            {validationErrors.length > 0 && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <p className="font-semibold text-yellow-800 mb-1">
+                  {validationErrors.length} row(s) had problems and were not
+                  included:
+                </p>
+                <div className="max-h-40 overflow-y-auto text-yellow-700 space-y-0.5">
+                  {validationErrors.map((err, idx) => (
+                    <p key={idx} className="text-xs">
+                      • {err}
                     </p>
-                    <div className="max-h-24 overflow-y-auto text-yellow-700">
-                      {validationErrors.slice(0, 3).map((err, idx) => (
-                        <p key={idx} className="text-xs">• {err}</p>
-                      ))}
-                      {validationErrors.length > 3 && (
-                        <p className="text-xs italic">...and {validationErrors.length - 3} more</p>
-                      )}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rows rejected by the server during upload */}
+            {serverErrors.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm">
+                <p className="font-semibold text-red-800 mb-2">
+                  {serverErrors.length} row(s) failed to upload:
+                </p>
+                <div className="max-h-52 overflow-y-auto space-y-2">
+                  {serverErrors.map((err, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs text-red-700 border-b border-red-100 pb-1"
+                    >
+                      <span className="font-medium">
+                        Row {err.row}
+                        {err.name && err.name !== "Unknown"
+                          ? ` (${err.name})`
+                          : ""}
+                        :
+                      </span>{" "}
+                      {err.error}
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1535,7 +1624,8 @@ export default function EmployeesPage() {
                   (e.g., 966501234567) - Optional
                 </p>
                 <p>
-                  <strong>Type:</strong> Either "employee" or "agent"
+                  <strong>Type:</strong> Must be the English word "employee" or
+                  "agent"
                 </p>
                 <p>
                   <strong>Join Date:</strong> Format YYYY-MM-DD (e.g.,
@@ -1556,6 +1646,7 @@ export default function EmployeesPage() {
                 setIsBulkUploadDialogOpen(false);
                 setParsedEmployees([]);
                 setValidationErrors([]);
+                setServerErrors([]);
                 setUploadProgress(0);
               }}
               disabled={isUploading}

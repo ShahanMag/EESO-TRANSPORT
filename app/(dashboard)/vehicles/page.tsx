@@ -74,6 +74,9 @@ export default function VehiclesPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [parsedVehicles, setParsedVehicles] = useState<any[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [serverErrors, setServerErrors] = useState<
+    Array<{ row: number; number?: string; name?: string; error: string }>
+  >([]);
   const [showTerminatedFilter, setShowTerminatedFilter] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
   const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(null);
@@ -433,27 +436,63 @@ export default function VehiclesPage() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
 
       const vehicles: any[] = [];
       const errors: string[] = [];
 
+      // Clear any failures shown from a previous upload attempt
+      setServerErrors([]);
+
+      // Guard: if the header row doesn't match the template, every row would
+      // otherwise fail with a confusing "missing required fields" message.
+      const EXPECTED_HEADERS = [
+        "Vehicle Number",
+        "Vehicle Name",
+        "Serial Number",
+        "Type (private/public)",
+        "Model",
+        "Vehicle Amount (SAR)",
+        "Start Date (YYYY-MM-DD)",
+        "Contract Expiry (YYYY-MM-DD)",
+        "Description",
+        "Employee Iqama ID (Optional)",
+      ];
+      if (
+        jsonData.length > 0 &&
+        !Object.keys(jsonData[0]).some((key) => EXPECTED_HEADERS.includes(key))
+      ) {
+        setParsedVehicles([]);
+        setValidationErrors([
+          'The column headers don\'t match the template. Please download the template below and keep its header row unchanged (the first row must contain "Vehicle Number", "Vehicle Name", "Type (private/public)", etc.).',
+        ]);
+        toast.error("Column headers don't match the template.");
+        return;
+      }
+
       // Validate and prepare all vehicles first
-      for (const row of jsonData as any[]) {
+      for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
+        const row = jsonData[rowIndex];
+        // Excel row number: +2 because row 1 is the header and arrays are 0-based
+        const rowNum = rowIndex + 2;
         try {
           // Validate required fields
-          if (!row["Vehicle Number"] || !row["Vehicle Name"]) {
+          const missingFields: string[] = [];
+          if (!row["Vehicle Number"]) missingFields.push("Vehicle Number");
+          if (!row["Vehicle Name"]) missingFields.push("Vehicle Name");
+          if (missingFields.length > 0) {
             errors.push(
-              `Row with vehicle "${
-                row["Vehicle Number"] || "unknown"
-              }" is missing required fields (Vehicle Number and Vehicle Name)`
+              `Row ${rowNum}: missing required field${
+                missingFields.length > 1 ? "s" : ""
+              } — ${missingFields.join(", ")}`
             );
             continue;
           }
 
-          const type = (
-            row["Type (private/public)"] || "private"
-          ).toLowerCase();
+          const type = (row["Type (private/public)"] || "private")
+            .toString()
+            .trim()
+            .toLowerCase();
           const vehicleAmount = row["Vehicle Amount (SAR)"];
 
           // Handle date conversion - Excel can return dates in various formats
@@ -533,8 +572,11 @@ export default function VehiclesPage() {
 
           // Validate type
           if (type !== "private" && type !== "public") {
+            const rawType = row["Type (private/public)"];
             errors.push(
-              `Row "${row["Vehicle Number"]}": Type must be "private" or "public"`
+              `Row ${rowNum} (${row["Vehicle Number"]}): Type "${
+                rawType ?? ""
+              }" is not recognized — use "private" or "public"`
             );
             continue;
           }
@@ -561,7 +603,7 @@ export default function VehiclesPage() {
 
           vehicles.push(vehicleData);
         } catch (error) {
-          errors.push(`Row "${row["Vehicle Number"]}": ${error}`);
+          errors.push(`Row ${rowNum} (${row["Vehicle Number"]}): ${error}`);
         }
       }
 
@@ -629,22 +671,38 @@ export default function VehiclesPage() {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       if (result.success) {
-        toast.success(result.message || `Successfully uploaded vehicle(s)`);
-        if (result.data?.errors && result.data.errors.length > 0) {
-          toast.warning(
-            `${result.data.errors.length} vehicle(s) failed. Check console for details.`
-          );
-          console.error("Bulk upload errors:", result.data.errors);
+        const serverErrs = result.data?.errors || [];
+        const createdCount = result.data?.created ?? 0;
+
+        if (serverErrs.length > 0) {
+          // Some/all rows were rejected by the server — keep the dialog open and
+          // show exactly which rows failed and why.
+          setServerErrors(serverErrs);
+          if (createdCount > 0) {
+            toast.warning(
+              `${createdCount} uploaded, ${serverErrs.length} failed. See the details below.`
+            );
+          } else {
+            toast.error(
+              `All ${serverErrs.length} row(s) failed. See the details below.`
+            );
+          }
+          refetchVehicles();
+          setParsedVehicles([]);
+          setUploadProgress(0);
+        } else {
+          toast.success(result.message || `Successfully uploaded vehicle(s)`);
+          refetchVehicles();
+          setIsBulkUploadDialogOpen(false);
+          setParsedVehicles([]);
+          setValidationErrors([]);
+          setServerErrors([]);
+          setUploadProgress(0);
         }
-        refetchVehicles();
-        setIsBulkUploadDialogOpen(false);
-        setParsedVehicles([]);
-        setValidationErrors([]);
-        setUploadProgress(0);
       } else {
         toast.error(result.error || "Failed to upload vehicles");
-        if (result.data?.errors) {
-          console.error("Bulk upload errors:", result.data.errors);
+        if (result.data?.errors?.length > 0) {
+          setServerErrors(result.data.errors);
         }
       }
     } catch (error) {
@@ -1214,7 +1272,13 @@ export default function VehiclesPage() {
         open={isBulkUploadDialogOpen}
         onOpenChange={setIsBulkUploadDialogOpen}
       >
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogContent
+          className="max-w-2xl max-h-[80vh] flex flex-col"
+          // Prevent the dialog from closing when the native file picker steals
+          // and returns focus (Radix treats that as an "interact outside").
+          // Close via the Close/X buttons or Escape instead.
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Bulk Upload Vehicles</DialogTitle>
           </DialogHeader>
@@ -1292,21 +1356,49 @@ export default function VehiclesPage() {
                   </div>
                 </div>
 
-                {validationErrors.length > 0 && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
-                    <p className="font-semibold text-yellow-800 mb-1">
-                      {validationErrors.length} row(s) had errors:
+              </div>
+            )}
+
+            {/* Rows rejected during file validation (before upload) */}
+            {validationErrors.length > 0 && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                <p className="font-semibold text-yellow-800 mb-1">
+                  {validationErrors.length} row(s) had problems and were not
+                  included:
+                </p>
+                <div className="max-h-40 overflow-y-auto text-yellow-700 space-y-0.5">
+                  {validationErrors.map((err, idx) => (
+                    <p key={idx} className="text-xs">
+                      • {err}
                     </p>
-                    <div className="max-h-24 overflow-y-auto text-yellow-700">
-                      {validationErrors.slice(0, 3).map((err, idx) => (
-                        <p key={idx} className="text-xs">• {err}</p>
-                      ))}
-                      {validationErrors.length > 3 && (
-                        <p className="text-xs italic">...and {validationErrors.length - 3} more</p>
-                      )}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rows rejected by the server during upload */}
+            {serverErrors.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-sm">
+                <p className="font-semibold text-red-800 mb-2">
+                  {serverErrors.length} row(s) failed to upload:
+                </p>
+                <div className="max-h-52 overflow-y-auto space-y-2">
+                  {serverErrors.map((err, idx) => (
+                    <div
+                      key={idx}
+                      className="text-xs text-red-700 border-b border-red-100 pb-1"
+                    >
+                      <span className="font-medium">
+                        Row {err.row}
+                        {err.number && err.number !== "Unknown"
+                          ? ` (${err.number})`
+                          : ""}
+                        :
+                      </span>{" "}
+                      {err.error}
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1342,8 +1434,8 @@ export default function VehiclesPage() {
                   number
                 </p>
                 <p>
-                  <strong>Type:</strong> Either "private" or "public" (default:
-                  private)
+                  <strong>Type:</strong> Must be the English word "private" or
+                  "public" (default: private)
                 </p>
                 <p>
                   <strong>Model:</strong> Optional - Year or model info (e.g.,
@@ -1379,6 +1471,7 @@ export default function VehiclesPage() {
                 setIsBulkUploadDialogOpen(false);
                 setParsedVehicles([]);
                 setValidationErrors([]);
+                setServerErrors([]);
                 setUploadProgress(0);
               }}
               disabled={isUploading}
