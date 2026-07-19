@@ -1,9 +1,9 @@
+import { AuthInterceptor } from "@/components/auth-interceptor";
+// import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { YearFilterProvider } from "@/contexts/YearFilterContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { YearFilterProvider } from "@/contexts/YearFilterContext";
-import { AuthInterceptor } from "@/components/auth-interceptor";
-
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -14,7 +14,6 @@ export const metadata: Metadata = {
     apple: "/images/Logo.jpeg",
   },
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -25,6 +24,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthInterceptor />
         <YearFilterProvider>
+          {/* <LanguageSwitcher /> */}
           {children}
         </YearFilterProvider>
       </body>
