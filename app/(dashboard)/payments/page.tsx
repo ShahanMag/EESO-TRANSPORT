@@ -51,10 +51,15 @@ interface Payment {
   remarks?: string;
 }
 
+interface UpdatedByList {
+  _id: string;
+  username: string;
+}
 interface PaymentWithInstallments extends Payment {
   installments: Installment[];
   paidAmount: number;
   dues: number;
+  updatedBy: UpdatedByList;
 }
 
 interface VehiclePaymentGroup {
@@ -832,6 +837,14 @@ export default function PaymentsPage() {
                                 <p className="text-xs text-gray-500">Dues</p>
                                 <p className="text-sm font-semibold text-red-600">
                                   {formatCurrency(payment.dues)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-gray-500">
+                                  Updated By
+                                </p>
+                                <p className="text-sm font-semibold text-blue-600">
+                                  {payment.updatedBy?.username}
                                 </p>
                               </div>
                               <div className="flex space-x-1">
