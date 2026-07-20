@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -12,12 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { exportToExcel } from "@/lib/excel-utils";
-import { Download, Check, X } from "lucide-react";
+import { useYearFilter } from "@/contexts/YearFilterContext";
 import { apiRequest } from "@/lib/api-config";
+import { exportToExcel } from "@/lib/excel-utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { Check, Download, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 
 interface Vehicle {
   _id: string;
@@ -32,6 +33,8 @@ interface Employee {
 }
 
 export default function ReportsPage() {
+  const { selectedYear } = useYearFilter();
+  console.log("selectedYear :", selectedYear);
   const [activeTab, setActiveTab] = useState("employees");
   const [dateRange, setDateRange] = useState({
     startDate: "",
@@ -90,7 +93,7 @@ export default function ReportsPage() {
     setIsSearchingVehicles(true);
     try {
       const res = await apiRequest(
-        `/api/vehicles?search=${encodeURIComponent(searchTerm)}&limit=100`
+        `/api/vehicles?search=${encodeURIComponent(searchTerm)}&limit=100`,
       );
       const data = await res.json();
       if (data.success) {
@@ -105,11 +108,11 @@ export default function ReportsPage() {
 
   // Handle payment status filter toggle
   function togglePaymentStatus(status: string) {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       paymentStatus: prev.paymentStatus.includes(status)
-        ? prev.paymentStatus.filter(s => s !== status)
-        : [...prev.paymentStatus, status]
+        ? prev.paymentStatus.filter((s) => s !== status)
+        : [...prev.paymentStatus, status],
     }));
   }
 
@@ -118,7 +121,7 @@ export default function ReportsPage() {
     try {
       let url = "";
       const params = new URLSearchParams();
-
+      if (selectedYear) params.append("selectedYear", String(selectedYear));
       if (dateRange.startDate) params.append("startDate", dateRange.startDate);
       if (dateRange.endDate) params.append("endDate", dateRange.endDate);
 
@@ -132,14 +135,15 @@ export default function ReportsPage() {
         case "payments":
           if (filters.vehicleId) params.append("vehicleId", filters.vehicleId);
           // Add multiple status filters if any are selected
-          filters.paymentStatus.forEach(status => {
+          filters.paymentStatus.forEach((status) => {
             params.append("status", status);
           });
           url = `/api/reports/payments?${params}`;
           break;
         case "bills":
           if (filters.billType) params.append("type", filters.billType);
-          if (filters.employeeId) params.append("employeeId", filters.employeeId);
+          if (filters.employeeId)
+            params.append("employeeId", filters.employeeId);
           url = `/api/reports/bills?${params}`;
           break;
       }
@@ -173,9 +177,10 @@ export default function ReportsPage() {
           phone: emp.phone || "",
           type: emp.type || "employee",
           joinDate: emp.joinDate ? formatDate(emp.joinDate) : "",
-          vehicleAssigned: emp.vehicleNumbers && emp.vehicleNumbers.length > 0
-            ? emp.vehicleNumbers.join(", ")
-            : "",
+          vehicleAssigned:
+            emp.vehicleNumbers && emp.vehicleNumbers.length > 0
+              ? emp.vehicleNumbers.join(", ")
+              : "",
         }));
         exportToExcel(
           employeeData,
@@ -188,7 +193,7 @@ export default function ReportsPage() {
             { header: "Join Date (YYYY-MM-DD)", key: "joinDate", width: 20 },
             { header: "Vehicle Assigned", key: "vehicleAssigned", width: 35 },
           ],
-          "employee-report"
+          "employee-report",
         );
         break;
 
@@ -203,7 +208,9 @@ export default function ReportsPage() {
           vehicleModel: vehicle.vehicleModel || "",
           vehicleAmount: vehicle.vehicleAmount || "",
           startDate: vehicle.startDate ? formatDate(vehicle.startDate) : "",
-          contractExpiry: vehicle.contractExpiry ? formatDate(vehicle.contractExpiry) : "",
+          contractExpiry: vehicle.contractExpiry
+            ? formatDate(vehicle.contractExpiry)
+            : "",
           description: vehicle.description || "",
           employeeIqamaId: vehicle.employeeId?.iqamaId || "",
         }));
@@ -218,9 +225,17 @@ export default function ReportsPage() {
           { header: "Model", key: "vehicleModel", width: 15 },
           { header: "Vehicle Amount (SAR)", key: "vehicleAmount", width: 20 },
           { header: "Start Date (YYYY-MM-DD)", key: "startDate", width: 20 },
-          { header: "Contract Expiry (YYYY-MM-DD)", key: "contractExpiry", width: 25 },
+          {
+            header: "Contract Expiry (YYYY-MM-DD)",
+            key: "contractExpiry",
+            width: 25,
+          },
           { header: "Description", key: "description", width: 35 },
-          { header: "Employee Iqama ID (Optional)", key: "employeeIqamaId", width: 25 },
+          {
+            header: "Employee Iqama ID (Optional)",
+            key: "employeeIqamaId",
+            width: 25,
+          },
         ];
 
         exportToExcel(vehicleData, vehicleColumns, "vehicle-report");
@@ -230,32 +245,37 @@ export default function ReportsPage() {
         // Find max number of installments across all payments
         const maxInstallmentsCount = Math.max(
           ...reportData.payments.map((p: any) => p.installments?.length || 0),
-          0
+          0,
         );
 
-        const paymentData = reportData.payments.map((payment: any, idx: number) => {
-          const row: any = {
-            siNo: idx + 1,
-            vehicle: payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle",
-            date: formatDate(payment.date),
-            totalAmount: payment.totalAmount,
-          };
+        const paymentData = reportData.payments.map(
+          (payment: any, idx: number) => {
+            const row: any = {
+              siNo: idx + 1,
+              vehicle: payment.vehicleId
+                ? payment.vehicleId.number
+                : "Deleted Vehicle",
+              date: formatDate(payment.date),
+              totalAmount: payment.totalAmount,
+            };
 
-          // Add installment columns combined (date/amount in one cell)
-          const installments = payment.installments || [];
-          for (let i = 0; i < maxInstallmentsCount; i++) {
-            const inst = installments[i];
-            if (inst) {
-              row[`installment_${i + 1}`] = `${formatDate(inst.date)}\n${formatCurrency(inst.amount)}`;
-            } else {
-              row[`installment_${i + 1}`] = "";
+            // Add installment columns combined (date/amount in one cell)
+            const installments = payment.installments || [];
+            for (let i = 0; i < maxInstallmentsCount; i++) {
+              const inst = installments[i];
+              if (inst) {
+                row[`installment_${i + 1}`] =
+                  `${formatDate(inst.date)}\n${formatCurrency(inst.amount)}`;
+              } else {
+                row[`installment_${i + 1}`] = "";
+              }
             }
-          }
 
-          row.paidAmount = payment.paidAmount;
-          row.dues = payment.dues;
-          return row;
-        });
+            row.paidAmount = payment.paidAmount;
+            row.dues = payment.dues;
+            return row;
+          },
+        );
 
         // Build columns array dynamically
         const paymentColumns = [
@@ -267,15 +287,17 @@ export default function ReportsPage() {
 
         // Add installment columns (combined date and amount)
         for (let i = 0; i < maxInstallmentsCount; i++) {
-          paymentColumns.push(
-            { header: `Installment ${i + 1}`, key: `installment_${i + 1}`, width: 25 }
-          );
+          paymentColumns.push({
+            header: `Installment ${i + 1}`,
+            key: `installment_${i + 1}`,
+            width: 25,
+          });
         }
 
         // Add summary columns
         paymentColumns.push(
           { header: "Total Paid (SAR)", key: "paidAmount", width: 18 },
-          { header: "Dues (SAR)", key: "dues", width: 15 }
+          { header: "Dues (SAR)", key: "dues", width: 15 },
         );
 
         exportToExcel(paymentData, paymentColumns, "payment-records-report");
@@ -302,7 +324,7 @@ export default function ReportsPage() {
             { header: "Paid Amount (SAR)", key: "paidAmount", width: 18 },
             { header: "Dues (SAR)", key: "dues", width: 15 },
           ],
-          "bills-report"
+          "bills-report",
         );
         break;
     }
@@ -388,7 +410,10 @@ export default function ReportsPage() {
                   <Select
                     value={filters.billType || undefined}
                     onValueChange={(value) =>
-                      setFilters({ ...filters, billType: value === "all" ? "" : value })
+                      setFilters({
+                        ...filters,
+                        billType: value === "all" ? "" : value,
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -406,7 +431,10 @@ export default function ReportsPage() {
                   <Select
                     value={filters.employeeId || undefined}
                     onValueChange={(value) =>
-                      setFilters({ ...filters, employeeId: value === "all" ? "" : value })
+                      setFilters({
+                        ...filters,
+                        employeeId: value === "all" ? "" : value,
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -448,40 +476,62 @@ export default function ReportsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="paymentStatus">Payment Status (Optional)</Label>
+                  <Label htmlFor="paymentStatus">
+                    Payment Status (Optional)
+                  </Label>
                   <div className="flex gap-2">
                     <Button
-                      variant={filters.paymentStatus.includes("paid") ? "default" : "outline"}
+                      variant={
+                        filters.paymentStatus.includes("paid")
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
                       onClick={() => togglePaymentStatus("paid")}
                       className="h-10"
                     >
-                      {filters.paymentStatus.includes("paid") && <Check className="mr-2 h-4 w-4" />}
+                      {filters.paymentStatus.includes("paid") && (
+                        <Check className="mr-2 h-4 w-4" />
+                      )}
                       Paid
                     </Button>
                     <Button
-                      variant={filters.paymentStatus.includes("unpaid") ? "default" : "outline"}
+                      variant={
+                        filters.paymentStatus.includes("unpaid")
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
                       onClick={() => togglePaymentStatus("unpaid")}
                       className="h-10"
                     >
-                      {filters.paymentStatus.includes("unpaid") && <Check className="mr-2 h-4 w-4" />}
+                      {filters.paymentStatus.includes("unpaid") && (
+                        <Check className="mr-2 h-4 w-4" />
+                      )}
                       Unpaid
                     </Button>
                     <Button
-                      variant={filters.paymentStatus.includes("partial") ? "default" : "outline"}
+                      variant={
+                        filters.paymentStatus.includes("partial")
+                          ? "default"
+                          : "outline"
+                      }
                       size="sm"
                       onClick={() => togglePaymentStatus("partial")}
                       className="h-10"
                     >
-                      {filters.paymentStatus.includes("partial") && <Check className="mr-2 h-4 w-4" />}
+                      {filters.paymentStatus.includes("partial") && (
+                        <Check className="mr-2 h-4 w-4" />
+                      )}
                       Partial
                     </Button>
                     {filters.paymentStatus.length > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setFilters({ ...filters, paymentStatus: [] })}
+                        onClick={() =>
+                          setFilters({ ...filters, paymentStatus: [] })
+                        }
                         className="h-10"
                       >
                         <X className="h-4 w-4" />
@@ -493,7 +543,11 @@ export default function ReportsPage() {
             )}
 
             <div className="flex items-end">
-              <Button onClick={fetchReport} disabled={loading} className="w-full">
+              <Button
+                onClick={fetchReport}
+                disabled={loading}
+                className="w-full"
+              >
                 {loading ? "Loading..." : "Generate Report"}
               </Button>
             </div>
@@ -624,10 +678,14 @@ export default function ReportsPage() {
                           {formatCurrency(vehicle.vehicleAmount || 0)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {vehicle.startDate ? formatDate(vehicle.startDate) : "N/A"}
+                          {vehicle.startDate
+                            ? formatDate(vehicle.startDate)
+                            : "N/A"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {vehicle.contractExpiry ? formatDate(vehicle.contractExpiry) : "N/A"}
+                          {vehicle.contractExpiry
+                            ? formatDate(vehicle.contractExpiry)
+                            : "N/A"}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                           {vehicle.description || "N/A"}
@@ -645,7 +703,9 @@ export default function ReportsPage() {
 
           {activeTab === "payments" && (
             <div>
-              <h2 className="text-xl font-semibold mb-4">Payment Records Report</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Payment Records Report
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <Card>
                   <CardHeader className="pb-2">
@@ -701,13 +761,25 @@ export default function ReportsPage() {
                         Total
                       </th>
                       {reportData.payments.length > 0 &&
-                        reportData.payments.reduce((max: number, p: any) => Math.max(max, p.installments?.length || 0), 0) > 0 &&
-                        Array.from({ length: reportData.payments.reduce((max: number, p: any) => Math.max(max, p.installments?.length || 0), 0) }).map((_, idx) => (
-                          <th key={`installment-${idx}`} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                        reportData.payments.reduce(
+                          (max: number, p: any) =>
+                            Math.max(max, p.installments?.length || 0),
+                          0,
+                        ) > 0 &&
+                        Array.from({
+                          length: reportData.payments.reduce(
+                            (max: number, p: any) =>
+                              Math.max(max, p.installments?.length || 0),
+                            0,
+                          ),
+                        }).map((_, idx) => (
+                          <th
+                            key={`installment-${idx}`}
+                            className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                          >
                             Installment {idx + 1}
                           </th>
-                        ))
-                      }
+                        ))}
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         Total Paid
                       </th>
@@ -718,7 +790,11 @@ export default function ReportsPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.payments.map((payment: any, idx: number) => {
-                      const maxInstallments = reportData.payments.reduce((max: number, p: any) => Math.max(max, p.installments?.length || 0), 0);
+                      const maxInstallments = reportData.payments.reduce(
+                        (max: number, p: any) =>
+                          Math.max(max, p.installments?.length || 0),
+                        0,
+                      );
                       const installments = payment.installments || [];
                       return (
                         <tr key={payment._id} className="hover:bg-gray-50">
@@ -726,7 +802,9 @@ export default function ReportsPage() {
                             {idx + 1}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {payment.vehicleId ? payment.vehicleId.number : "Deleted Vehicle"}
+                            {payment.vehicleId
+                              ? payment.vehicleId.number
+                              : "Deleted Vehicle"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(payment.date)}
@@ -734,21 +812,30 @@ export default function ReportsPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
                             {formatCurrency(payment.totalAmount)}
                           </td>
-                          {Array.from({ length: maxInstallments }).map((_, idx) => {
-                            const inst = installments[idx];
-                            return (
-                              <td key={`inst-${payment._id}-${idx}`} className="px-6 py-4 text-center text-xs">
-                                {inst ? (
-                                  <div className="space-y-1">
-                                    <div className="font-semibold">{formatDate(inst.date)}</div>
-                                    <div className="text-green-600 font-semibold">{formatCurrency(inst.amount)}</div>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-300">-</span>
-                                )}
-                              </td>
-                            );
-                          })}
+                          {Array.from({ length: maxInstallments }).map(
+                            (_, idx) => {
+                              const inst = installments[idx];
+                              return (
+                                <td
+                                  key={`inst-${payment._id}-${idx}`}
+                                  className="px-6 py-4 text-center text-xs"
+                                >
+                                  {inst ? (
+                                    <div className="space-y-1">
+                                      <div className="font-semibold">
+                                        {formatDate(inst.date)}
+                                      </div>
+                                      <div className="text-green-600 font-semibold">
+                                        {formatCurrency(inst.amount)}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-300">-</span>
+                                  )}
+                                </td>
+                              );
+                            },
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 text-right font-semibold">
                             {formatCurrency(payment.paidAmount)}
                           </td>
@@ -779,8 +866,8 @@ export default function ReportsPage() {
                       {formatCurrency(reportData.summary.totalIncome)}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Paid: {formatCurrency(reportData.summary.paidIncome)} | Dues:{" "}
-                      {formatCurrency(reportData.summary.duesIncome)}
+                      Paid: {formatCurrency(reportData.summary.paidIncome)} |
+                      Dues: {formatCurrency(reportData.summary.duesIncome)}
                     </p>
                   </CardContent>
                 </Card>
@@ -795,8 +882,8 @@ export default function ReportsPage() {
                       {formatCurrency(reportData.summary.totalExpense)}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Paid: {formatCurrency(reportData.summary.paidExpense)} | Dues:{" "}
-                      {formatCurrency(reportData.summary.duesExpense)}
+                      Paid: {formatCurrency(reportData.summary.paidExpense)} |
+                      Dues: {formatCurrency(reportData.summary.duesExpense)}
                     </p>
                   </CardContent>
                 </Card>

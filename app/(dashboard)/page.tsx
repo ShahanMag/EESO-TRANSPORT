@@ -1,28 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartCarousel } from "@/components/charts/chart-carousel";
+import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
+import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import { apiRequest } from "@/lib/api-config";
+import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
 import {
-  Users,
+  ArrowRight,
+  Calendar,
   Car,
   CreditCard,
   FileText,
-  Calendar,
-  DollarSign,
-  ArrowRight,
+  Users,
 } from "lucide-react";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { IncomeExpenseChart } from "@/components/charts/income-expense-chart";
-import { VehiclePaymentsChart } from "@/components/charts/vehicle-payments-chart";
-import { ChartCarousel } from "@/components/charts/chart-carousel";
-import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
-import { apiRequest } from "@/lib/api-config";
-import { useYearFilter } from "@/contexts/YearFilterContext";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Installment {
   _id: string;
@@ -57,6 +55,7 @@ interface Bill {
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { selectedYear } = useYearFilter();
   const [stats, setStats] = useState({
@@ -95,13 +94,13 @@ export default function DashboardPage() {
 
       // Single API call for all dashboard data!
       const res = await apiRequest(
-        `/api/reports/dashboard?year=${selectedYear}`
+        `/api/reports/dashboard?year=${selectedYear}`,
       );
       const result = await res.json();
 
       // Fetch unassigned vehicles count
       const vehiclesRes = await apiRequest(
-        `/api/vehicles?assigned=false&limit=1&year=${selectedYear}`
+        `/api/vehicles?assigned=false&limit=1&year=${selectedYear}`,
       );
       const vehiclesResult = await vehiclesRes.json();
 
@@ -148,9 +147,15 @@ export default function DashboardPage() {
       status === "paid"
         ? "success"
         : status === "partial"
-        ? "warning"
-        : "danger";
-    return <Badge variant={variant}>{status}</Badge>;
+          ? "warning"
+          : "danger";
+    const statusMap = {
+      paid: "statusPaid",
+      partial: "statusPartial",
+      unpaid: "statusUnpaid",
+    } as const;
+
+    return <Badge variant={variant}>{t(statusMap[status])}</Badge>;
   }
 
   if (loading) {
@@ -181,7 +186,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">{t("dashboard")}</h1>
 
         {/* Date Filter */}
         {/* <div className="flex items-center gap-4">
@@ -215,7 +220,7 @@ export default function DashboardPage() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-700">
-              Total Employees
+              {t("totalEmployees")}
             </CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
@@ -231,7 +236,7 @@ export default function DashboardPage() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-700">
-              Unassigned Vehicles
+              {t("unassignedVehicles")}
             </CardTitle>
             <Car className="h-4 w-4 text-purple-600" />
           </CardHeader>
@@ -247,7 +252,7 @@ export default function DashboardPage() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700">
-              Unpaid Payments
+              {t("unpaidPayments")}
             </CardTitle>
             <CreditCard className="h-4 w-4 text-green-600" />
           </CardHeader>
@@ -263,7 +268,7 @@ export default function DashboardPage() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-amber-700">
-              Income & Expense
+              {t("incomeAndExpense")}
             </CardTitle>
             <FileText className="h-4 w-4 text-amber-600" />
           </CardHeader>
@@ -302,7 +307,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-indigo-900">
                 <CreditCard className="h-5 w-5 mr-2 text-indigo-700" />
-                Recent Vehicle Payments
+                {t("recentVehiclePayments")}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -310,7 +315,7 @@ export default function DashboardPage() {
                 onClick={() => router.push("/vehicles")}
                 className="text-indigo-700 hover:text-indigo-900 hover:bg-indigo-200"
               >
-                View All
+                {t("viewAll")}
                 <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -328,11 +333,11 @@ export default function DashboardPage() {
                         <h3 className="font-semibold text-gray-900">
                           {payment.vehicleId
                             ? payment.vehicleId.number
-                            : "Deleted Vehicle"}
+                            : t("deletedVehicle")}
                         </h3>
                         {getStatusBadge(
                           payment.totalAmount,
-                          payment.paidAmount
+                          payment.paidAmount,
                         )}
                       </div>
                       <p className="text-sm text-gray-600">
@@ -368,7 +373,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="bg-white rounded-lg p-8 text-center text-gray-500 border border-indigo-200">
-                No recent vehicle payments
+                {t("noRecentVehiclePayments")}
               </div>
             )}
           </CardContent>
@@ -380,7 +385,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center text-rose-900">
                 <FileText className="h-5 w-5 mr-2 text-rose-700" />
-                Recent Transactions
+                {t("recentTransactions")}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -411,13 +416,17 @@ export default function DashboardPage() {
                             bill.type === "income" ? "default" : "secondary"
                           }
                         >
-                          {bill.type}
+                          {t(
+                            bill.type === "income"
+                              ? "typeIncome"
+                              : "typeExpense",
+                          )}
                         </Badge>
                         {getStatusBadge(bill.totalAmount, bill.paidAmount)}
                       </div>
                       {bill.employeeId && (
                         <p className="text-sm text-gray-600">
-                          Agent: {bill.employeeId.name}
+                          {t("agent")}: {bill.employeeId.name}
                         </p>
                       )}
                     </div>
@@ -434,10 +443,10 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex space-x-4">
                       <span className="text-green-600 font-semibold">
-                        Paid: {formatCurrency(bill.paidAmount)}
+                        {t("paid")}: {formatCurrency(bill.paidAmount)}
                       </span>
                       <span className="text-red-600 font-semibold">
-                        Due:{" "}
+                        {t("due")}:{" "}
                         {formatCurrency(bill.totalAmount - bill.paidAmount)}
                       </span>
                     </div>
@@ -446,7 +455,7 @@ export default function DashboardPage() {
               ))
             ) : (
               <div className="bg-white rounded-lg p-8 text-center text-gray-500 border border-rose-200">
-                No recent transactions
+                {t("noRecentTransactions")}
               </div>
             )}
           </CardContent>

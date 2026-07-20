@@ -1,0 +1,34 @@
+{
+  "dashboard": "Dashboard",
+  "employees": "Employees",
+  "vehicles": "Vehicles",
+  "payments": "Payments",
+  "save": "Save",
+  "cancel": "Cancel",
+  "viewAll": "View All",
+
+  "totalEmployees": "Total Employees",
+  "unassignedVehicles": "Unassigned Vehicles",
+  "unpaidPayments": "Unpaid Payments",
+  "incomeAndExpense": "Income & Expense",
+
+  "vehiclePaymentsOverview": "Vehicle Payments Overview",
+  "incomeExpenseTrends": "Income & Expense Trends",
+
+  "recentVehiclePayments": "Recent Vehicle Payments",
+  "recentTransactions": "Recent Transactions",
+  "noRecentVehiclePayments": "No recent vehicle payments",
+  "noRecentTransactions": "No recent transactions",
+
+  "deletedVehicle": "Deleted Vehicle",
+  "agent": "Agent",
+  "paid": "Paid",
+  "due": "Due",
+
+  "statusPaid": "paid",
+  "statusPartial": "partial",
+  "statusUnpaid": "unpaid",
+
+  "typeIncome": "income",
+  "typeExpense": "expense"
+}

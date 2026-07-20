@@ -1,48 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
-  Car,
-  Check,
-  X,
-} from "lucide-react";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@/components/ui/searchable-select";
-import { Pagination } from "@/components/ui/pagination";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { toast } from "sonner";
-import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 import { useYearFilter } from "@/contexts/YearFilterContext";
-import { log } from "console";
+import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
+import {
+  Car,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Edit,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -62,10 +51,15 @@ interface Payment {
   remarks?: string;
 }
 
+interface UpdatedByList {
+  _id: string;
+  username: string;
+}
 interface PaymentWithInstallments extends Payment {
   installments: Installment[];
   paidAmount: number;
   dues: number;
+  updatedBy: UpdatedByList;
 }
 
 interface VehiclePaymentGroup {
@@ -251,10 +245,8 @@ export default function PaymentsPage() {
 
       // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
-        fetch(`${API_URL}/api/payments?${params.toString()}`, {
-        }),
-        fetch(`${API_URL}/api/installments?year=${selectedYear}`, {
-        }),
+        fetch(`${API_URL}/api/payments?${params.toString()}`, {}),
+        fetch(`${API_URL}/api/installments?year=${selectedYear}`, {}),
       ]);
 
       const [paymentsData, allInstallmentsData] = await Promise.all([
@@ -758,6 +750,9 @@ export default function PaymentsPage() {
                         <p className="text-sm text-blue-700">
                           {group.vehicle.name}
                         </p>
+                        <p className="text-xs font-semibold text-gray-600">
+                          Serial No: {group.vehicle.serialNumber}
+                        </p>
                       </div>
                     </div>
                     {getStatusBadge(group.totalAmount, group.totalPaid)}
@@ -844,6 +839,16 @@ export default function PaymentsPage() {
                                   {formatCurrency(payment.dues)}
                                 </p>
                               </div>
+                              {payment.updatedBy && (
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">
+                                    Updated By
+                                  </p>
+                                  <p className="text-sm font-semibold text-blue-600">
+                                    {payment.updatedBy?.username}
+                                  </p>
+                                </div>
+                              )}
                               <div className="flex space-x-1">
                                 <Button
                                   variant="outline"

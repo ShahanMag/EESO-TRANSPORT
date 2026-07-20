@@ -1,0 +1,34 @@
+{
+  "dashboard": "لوحة التحكم",
+  "employees": "الموظفون",
+  "vehicles": "المركبات",
+  "payments": "المدفوعات",
+  "save": "حفظ",
+  "cancel": "إلغاء",
+  "viewAll": "عرض الكل",
+
+  "totalEmployees": "إجمالي الموظفين",
+  "unassignedVehicles": "المركبات غير المخصصة",
+  "unpaidPayments": "المدفوعات غير المسددة",
+  "incomeAndExpense": "الدخل والمصروفات",
+
+  "vehiclePaymentsOverview": "نظرة عامة على مدفوعات المركبات",
+  "incomeExpenseTrends": "اتجاهات الدخل والمصروفات",
+
+  "recentVehiclePayments": "أحدث مدفوعات المركبات",
+  "recentTransactions": "أحدث المعاملات",
+  "noRecentVehiclePayments": "لا توجد مدفوعات مركبات حديثة",
+  "noRecentTransactions": "لا توجد معاملات حديثة",
+
+  "deletedVehicle": "مركبة محذوفة",
+  "agent": "الوكيل",
+  "paid": "المدفوع",
+  "due": "المستحق",
+
+  "statusPaid": "مدفوع",
+  "statusPartial": "جزئي",
+  "statusUnpaid": "غير مدفوع",
+
+  "typeIncome": "دخل",
+  "typeExpense": "مصروف"
+}
