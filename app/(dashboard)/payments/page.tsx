@@ -839,14 +839,16 @@ export default function PaymentsPage() {
                                   {formatCurrency(payment.dues)}
                                 </p>
                               </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-500">
-                                  Updated By
-                                </p>
-                                <p className="text-sm font-semibold text-blue-600">
-                                  {payment.updatedBy?.username}
-                                </p>
-                              </div>
+                              {payment.updatedBy && (
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">
+                                    Updated By
+                                  </p>
+                                  <p className="text-sm font-semibold text-blue-600">
+                                    {payment.updatedBy?.username}
+                                  </p>
+                                </div>
+                              )}
                               <div className="flex space-x-1">
                                 <Button
                                   variant="outline"
