@@ -45,5 +45,19 @@
   "loginSuccessful": "تم تسجيل الدخول بنجاح! جارٍ التحويل...",
   "loginFailed": "فشل تسجيل الدخول",
   "loginErrorOccurred": "حدث خطأ أثناء تسجيل الدخول",
-  "logoAlt": "شعار الجوهرة"
+  "logoAlt": "شعار الجوهرة",
+
+  "reports": "التقارير",
+  "settings": "الإعدادات",
+  "yearFilter": "تصفية السنة",
+  "selectYear": "اختر السنة",
+  "financial": "المالية",
+  "superAdmin": "مدير عام",
+  "admin": "مدير",
+  "loggingOut": "جارٍ تسجيل الخروج...",
+  "logout": "تسجيل الخروج",
+  "support": "الدعم",
+  "loggedOutSuccessfully": "تم تسجيل الخروج بنجاح",
+  "logoutErrorOccurred": "حدث خطأ أثناء تسجيل الخروج",
+  "copyright": "© 2025 الجوهرة"
 }

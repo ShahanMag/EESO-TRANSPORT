@@ -45,5 +45,19 @@
   "loginSuccessful": "Login successful! Redirecting...",
   "loginFailed": "Login failed",
   "loginErrorOccurred": "An error occurred during login",
-  "logoAlt": "Al Jawhara Logo"
+  "logoAlt": "Al Jawhara Logo",
+
+  "reports": "Reports",
+  "settings": "Settings",
+  "yearFilter": "Year Filter",
+  "selectYear": "Select year",
+  "financial": "Financial",
+  "superAdmin": "Super Admin",
+  "admin": "Admin",
+  "loggingOut": "Logging out...",
+  "logout": "Logout",
+  "support": "Support",
+  "loggedOutSuccessfully": "Logged out successfully",
+  "logoutErrorOccurred": "An error occurred during logout",
+  "copyright": "© 2025 Al Jawhara"
 }

@@ -28,23 +28,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const topNavigation = [
-  { name: "Dashboard", href: "/", icon: Home },
-  { name: "Employees", href: "/employees", icon: Users },
-  { name: "Vehicles", href: "/vehicles", icon: Car },
-  { name: "Payments", href: "/payments", icon: CreditCard },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+// const topNavigation = [
+//   { name: "Dashboard", href: "/", icon: Home },
+//   { name: "Employees", href: "/employees", icon: Users },
+//   { name: "Vehicles", href: "/vehicles", icon: Car },
+//   { name: "Payments", href: "/payments", icon: CreditCard },
+//   { name: "Reports", href: "/reports", icon: BarChart3 },
+//   { name: "Settings", href: "/settings", icon: Settings },
+// ];
 
-const incomeExpenseNavigation = [
-  { name: "Income & Expense", href: "/bills", icon: FileText },
-  { name: "Reports", href: "/income-expense-reports", icon: BarChart3 },
-];
+// const incomeExpenseNavigation = [
+//   { name: "Income & Expense", href: "/bills", icon: FileText },
+//   { name: "Reports", href: "/income-expense-reports", icon: BarChart3 },
+// ];
 
 interface SidebarProps {
   onLinkClick?: () => void;
@@ -56,6 +57,29 @@ interface User {
 }
 
 export function Sidebar({ onLinkClick }: SidebarProps = {}) {
+  const { t } = useTranslation();
+
+  const topNavigation = [
+    { name: t("dashboard"), href: "/", icon: Home },
+    { name: t("employees"), href: "/employees", icon: Users },
+    { name: t("vehicles"), href: "/vehicles", icon: Car },
+    { name: t("payments"), href: "/payments", icon: CreditCard },
+    { name: t("reports"), href: "/reports", icon: BarChart3 },
+    { name: t("settings"), href: "/settings", icon: Settings },
+  ];
+
+  const incomeExpenseNavigation = [
+    {
+      name: t("incomeAndExpense"),
+      href: "/bills",
+      icon: FileText,
+    },
+    {
+      name: t("reports"),
+      href: "/income-expense-reports",
+      icon: BarChart3,
+    },
+  ];
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -91,18 +115,18 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Logged out successfully");
+        toast.success(t("loggedOutSuccessfully"));
         router.push("/login");
         router.refresh();
       } else {
-        toast.success("Logged out successfully");
+        toast.success(t("loggedOutSuccessfully"));
 
         router.push("/login");
         router.refresh();
       }
     } catch (error) {
       console.error("Logout error:", error);
-      toast.error("An error occurred during logout");
+      toast.error(t("logoutErrorOccurred"));
     } finally {
       setLoggingOut(false);
     }
@@ -115,7 +139,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
         <div className="relative h-24 w-full">
           <Image
             src="/images/new-logo3.PNG"
-            alt="Al Jawhara Logo"
+            alt={t("logoAlt")}
             fill
             priority
             className="object-contain"
@@ -128,7 +152,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
         <div className="flex items-center gap-2 mb-2">
           <Calendar className="h-4 w-4 text-gray-400" />
           <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Year Filter
+            {t("yearFilter")}
           </span>
         </div>
         <Select
@@ -136,7 +160,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
           onValueChange={(value) => setSelectedYear(parseInt(value, 10))}
         >
           <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white hover:bg-gray-700">
-            <SelectValue placeholder="Select year" />
+            <SelectValue placeholder={t("selectYear")} />
           </SelectTrigger>
           <SelectContent className="bg-gray-800 border-gray-700">
             {yearOptions.map((year) => (
@@ -170,7 +194,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
               )}
             >
               <item.icon className="h-5 w-5" />
-              {item.name}
+              {t(item.name)}
             </Link>
           );
         })}
@@ -180,7 +204,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
         {/* Financial Section */}
         <div className="pb-2 pt-10">
           <h3 className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Financial
+            {t("financial")}
           </h3>
           {incomeExpenseNavigation.map((item) => {
             const isActive = pathname === item.href;
@@ -197,7 +221,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                {item.name}
+                {t(item.name)}
               </Link>
             );
           })}
@@ -215,7 +239,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
                 {user?.username}
               </p>
               <p className="text-xs text-gray-400">
-                {user?.role === "super_admin" ? "Super Admin" : "Admin"}
+                {user?.role === "super_admin" ? t("superAdmin") : t("admin")}
               </p>
             </div>
           </div>
@@ -227,7 +251,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
             size="sm"
           >
             <LogOut className="h-4 w-4 mr-2" />
-            {loggingOut ? "Logging out..." : "Logout"}
+            {loggingOut ? t("loggingOut") : t("logout")}
           </Button>
         </div>
       </div>
@@ -235,7 +259,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
       {/* Support Section */}
       <div className="border-t border-gray-800 p-4 space-y-3 shrink-0">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          Support
+          {t("support")}
         </h3>
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-gray-300">
@@ -255,7 +279,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
           </div>
         </div>
         <p className="text-xs text-gray-500 pt-2 border-t border-gray-800">
-          © 2025 Al Jawhara
+          {t("copyright")}
         </p>
       </div>
     </div>
