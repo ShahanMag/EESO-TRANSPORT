@@ -41,6 +41,7 @@ interface Installment {
   amount: number;
   date: string;
   remarks?: string;
+  updatedBy: UpdatedByList;
 }
 
 interface Payment {
@@ -839,6 +840,16 @@ export default function PaymentsPage() {
                                   {formatCurrency(payment.dues)}
                                 </p>
                               </div>
+                              {payment.updatedBy && (
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-500">
+                                    Updated By
+                                  </p>
+                                  <p className="text-sm font-semibold text-blue-600 capitalize">
+                                    {payment.updatedBy?.username}
+                                  </p>
+                                </div>
+                              )}
 
                               <div className="flex space-x-1">
                                 <Button
@@ -920,7 +931,7 @@ export default function PaymentsPage() {
                                               {installment.remarks || "-"}
                                             </td>
                                             <td className="px-4 py-2 text-sm font-semibold capitalize text-gray-600">
-                                              {payment.updatedBy?.username}
+                                              {installment.updatedBy?.username}
                                             </td>
                                             <td className="px-4 py-2 text-right">
                                               <Button
