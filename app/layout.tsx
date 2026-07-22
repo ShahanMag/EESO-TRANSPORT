@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   title: "Al Jawhara",
   description: "Al Jawhara",
   icons: {
-    icon: "/images/Logo.jpeg",
-    apple: "/images/Logo.jpeg",
+    icon: "/images/new-logo1.jpeg",
+    apple: "/images/new-logo1.jpeg",
   },
 };
 export default function RootLayout({
