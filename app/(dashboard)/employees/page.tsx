@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -18,36 +21,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
+import { useVehicles } from "@/contexts/VehicleContext";
+import { exportToExcel } from "@/lib/excel-utils";
 import {
+  Camera,
+  Download,
+  Edit,
+  Eye,
   Plus,
   Search,
-  Edit,
   Trash2,
-  X,
   Upload,
-  Download,
-  UserX,
-  ImagePlus,
-  Eye,
-  Camera,
   User,
+  UserX,
+  X,
 } from "lucide-react";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import Image from "next/image";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Pagination } from "@/components/ui/pagination";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { exportToExcel } from "@/lib/excel-utils";
-import { apiRequest } from "@/lib/api-config";
-import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
-import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function EmployeesPage() {
-  const { employees: contextEmployees, loading: contextLoading, refetchEmployees, pagination: contextPagination, goToPage, setItemsPerPage } = useEmployees();
+  const { t } = useTranslation();
+  const {
+    employees: contextEmployees,
+    loading: contextLoading,
+    refetchEmployees,
+    pagination: contextPagination,
+    goToPage,
+    setItemsPerPage,
+  } = useEmployees();
   const { vehicles: contextVehicles } = useVehicles();
 
   // Local state for search and filters only
@@ -87,9 +94,13 @@ export default function EmployeesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
   const [showTerminated, setShowTerminated] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<"all" | "employee" | "agent">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "employee" | "agent">(
+    "all",
+  );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(
+    null,
+  );
 
   function handlePageChange(page: number) {
     goToPage(page);
@@ -122,11 +133,11 @@ export default function EmployeesPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
+      newErrors.name = t("nameRequired");
     }
 
     if (!/^\d{10}$/.test(formData.iqamaId)) {
-      newErrors.iqamaId = "Iqama ID must be exactly 10 digits";
+      newErrors.iqamaId = t("iqamaIdMustBe10Digits");
     }
 
     // Phone is optional, but if provided, must match format
@@ -135,7 +146,7 @@ export default function EmployeesPage() {
       formData.phone.trim() !== "+966" &&
       !/^\+966\d{9}$/.test(formData.phone)
     ) {
-      newErrors.phone = "Phone must be in format +966XXXXXXXXX";
+      newErrors.phone = t("phoneFormatError");
     }
 
     setErrors(newErrors);
@@ -161,7 +172,10 @@ export default function EmployeesPage() {
       formDataToSend.append("phone", formData.phone);
       formDataToSend.append("type", formData.type);
       if (formData.joinDate) {
-        formDataToSend.append("joinDate", new Date(formData.joinDate).toISOString());
+        formDataToSend.append(
+          "joinDate",
+          new Date(formData.joinDate).toISOString(),
+        );
       }
 
       // Add image file if selected
@@ -182,17 +196,15 @@ export default function EmployeesPage() {
         // Update vehicle assignments
         // First, unassign all vehicles that were previously assigned to this employee
         if (editingEmployee) {
-          const previousVehicles = contextVehicles.filter(
-            (v) => {
-              const empId =
-                typeof v.employeeId === "object" && v.employeeId !== null
-                  ? (v.employeeId as any)._id
-                  : v.employeeId;
-              return empId === editingEmployee._id;
-            }
-          );
+          const previousVehicles = contextVehicles.filter((v) => {
+            const empId =
+              typeof v.employeeId === "object" && v.employeeId !== null
+                ? (v.employeeId as any)._id
+                : v.employeeId;
+            return empId === editingEmployee._id;
+          });
           const vehiclesToUnassign = previousVehicles.filter(
-            (v) => !selectedVehicles.includes(v._id)
+            (v) => !selectedVehicles.includes(v._id),
           );
 
           for (const vehicle of vehiclesToUnassign) {
@@ -233,8 +245,8 @@ export default function EmployeesPage() {
 
         toast.success(
           editingEmployee
-            ? "Employee updated successfully"
-            : "Employee created successfully"
+            ? t("employeeUpdatedSuccess")
+            : t("employeeCreatedSuccess"),
         );
         refetchEmployees();
         handleCloseDialog();
@@ -243,7 +255,7 @@ export default function EmployeesPage() {
       }
     } catch (error) {
       console.error("Error saving employee:", error);
-      setErrors({ submit: "An error occurred" });
+      setErrors({ submit: t("errorOccurred") });
     } finally {
       setIsSubmitting(false);
     }
@@ -267,22 +279,25 @@ export default function EmployeesPage() {
     if (!deletingEmployee) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/employees/${deletingEmployee._id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `${API_URL}/api/employees/${deletingEmployee._id}`,
+        {
+          method: "DELETE",
+        },
+      );
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Employee deleted successfully");
+        toast.success(t("employeeDeletedSuccess"));
         refetchEmployees();
         setIsDeleteDialogOpen(false);
         setDeletingEmployee(null);
       } else {
-        toast.error(data.error || "Failed to delete employee");
+        toast.error(data.error || t("failedToDeleteEmployee"));
       }
     } catch (error) {
       console.error("Error deleting employee:", error);
-      toast.error("An error occurred while deleting employee");
+      toast.error(t("errorDeletingEmployee"));
     }
   }
 
@@ -291,7 +306,7 @@ export default function EmployeesPage() {
     if (!terminatingEmployee) return;
 
     if (!terminateFormData.date || !terminateFormData.reason.trim()) {
-      toast.error("Please provide both termination date and reason");
+      toast.error(t("provideTerminationDateReason"));
       return;
     }
 
@@ -328,13 +343,13 @@ export default function EmployeesPage() {
             terminationDate: terminateFormData.date,
             terminationReason: terminateFormData.reason,
           }),
-        }
+        },
       );
       const data = await res.json();
 
       if (data.success) {
         toast.success(
-          `Employee terminated successfully. ${assignedVehicles.length} vehicle(s) unassigned.`
+          t("employeeTerminatedSuccess", { count: assignedVehicles.length }),
         );
         refetchEmployees();
         setIsTerminateDialogOpen(false);
@@ -344,29 +359,28 @@ export default function EmployeesPage() {
           reason: "",
         });
       } else {
-        toast.error(data.error || "Failed to terminate employee");
+        toast.error(data.error || t("failedToTerminateEmployee"));
       }
     } catch (error) {
       console.error("Error terminating employee:", error);
-      toast.error("An error occurred while terminating employee");
+      toast.error(t("errorTerminatingEmployee"));
     }
   }
 
   async function handleViewEmployee(employee: Employee) {
     try {
-      const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
-      });
+      const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {});
       const data = await res.json();
 
       if (data.success) {
         setViewingEmployee(data.data);
         setIsViewDialogOpen(true);
       } else {
-        toast.error("Failed to fetch employee details");
+        toast.error(t("failedToFetchEmployeeDetails"));
       }
     } catch (error) {
       console.error("Error fetching employee:", error);
-      toast.error("Error loading employee data");
+      toast.error(t("errorLoadingEmployeeData"));
     }
   }
 
@@ -374,8 +388,7 @@ export default function EmployeesPage() {
     if (employee) {
       // Fetch complete employee data from API
       try {
-        const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {
-        });
+        const res = await fetch(`${API_URL}/api/employees/${employee._id}`, {});
         const data = await res.json();
 
         if (data.success) {
@@ -477,7 +490,7 @@ export default function EmployeesPage() {
     ];
 
     exportToExcel(templateData, columns, "employee-template");
-    toast.success("Template downloaded successfully");
+    toast.success(t("templateDownloadedSuccess"));
   }
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -511,10 +524,8 @@ export default function EmployeesPage() {
         !Object.keys(jsonData[0]).some((key) => EXPECTED_HEADERS.includes(key))
       ) {
         setParsedEmployees([]);
-        setValidationErrors([
-          'The column headers don\'t match the template. Please download the template below and keep its header row unchanged (the first row must contain "Name", "Iqama ID (10 digits)", "Type (employee/agent)", etc.).',
-        ]);
-        toast.error("Column headers don't match the template.");
+        setValidationErrors([t("columnHeadersMismatchDetail")]);
+        toast.error(t("columnHeadersMismatch"));
         return;
       }
 
@@ -531,9 +542,11 @@ export default function EmployeesPage() {
             missingFields.push("Iqama ID (10 digits)");
           if (missingFields.length > 0) {
             errors.push(
-              `Row ${rowNum}: missing required field${
-                missingFields.length > 1 ? "s" : ""
-              } — ${missingFields.join(", ")}`
+              `Row ${rowNum}: ${
+                missingFields.length > 1
+                  ? t("missingRequiredFields")
+                  : t("missingRequiredField")
+              } — ${missingFields.join(", ")}`,
             );
             continue;
           }
@@ -565,7 +578,7 @@ export default function EmployeesPage() {
               // Excel epoch: January 1, 1900 (but Excel incorrectly treats 1900 as a leap year)
               const excelEpoch = new Date(Date.UTC(1900, 0, 1));
               const date = new Date(
-                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000,
               );
               // Use UTC methods to avoid timezone issues
               const year = date.getUTCFullYear();
@@ -581,7 +594,7 @@ export default function EmployeesPage() {
                 const year = parsedDate.getUTCFullYear();
                 const month = String(parsedDate.getUTCMonth() + 1).padStart(
                   2,
-                  "0"
+                  "0",
                 );
                 const day = String(parsedDate.getUTCDate()).padStart(2, "0");
                 joinDate = `${year}-${month}-${day}`;
@@ -616,9 +629,7 @@ export default function EmployeesPage() {
           if (type !== "employee" && type !== "agent") {
             const rawType = row["Type (employee/agent)"];
             errors.push(
-              `Row ${rowNum} (${row.Name}): Type "${
-                rawType ?? ""
-              }" is not recognized — use "employee" or "agent"`
+              `Row ${rowNum} (${row.Name}): Type "${rawType ?? ""}" ${t("typeNotRecognized")}`,
             );
             continue;
           }
@@ -646,22 +657,20 @@ export default function EmployeesPage() {
 
       // If there are validation errors, show them
       if (errors.length > 0) {
-        toast.warning(
-          `${errors.length} row(s) failed validation. Check the preview below.`
-        );
+        toast.warning(`${errors.length} ${t("rowsFailedValidation")}`);
       }
 
       // If there are no valid employees, show error
       if (employees.length === 0) {
-        toast.error("No valid employees found in the file");
+        toast.error(t("noValidEmployeesFound"));
         setParsedEmployees([]);
         setValidationErrors(errors);
       } else {
-        toast.success(`${employees.length} employee(s) ready to upload`);
+        toast.success(`${employees.length} ${t("employeesReadyToUpload")}`);
       }
     } catch (error) {
       console.error("Error processing file:", error);
-      toast.error("Error processing file. Please check the format.");
+      toast.error(t("errorProcessingFile"));
     } finally {
       // Reset file input
       e.target.value = "";
@@ -670,7 +679,7 @@ export default function EmployeesPage() {
 
   async function handleBulkUploadSubmit() {
     if (parsedEmployees.length === 0) {
-      toast.error("No employees to upload");
+      toast.error(t("noEmployeesToUpload"));
       return;
     }
 
@@ -713,18 +722,16 @@ export default function EmployeesPage() {
           setServerErrors(serverErrs);
           if (createdCount > 0) {
             toast.warning(
-              `${createdCount} uploaded, ${serverErrs.length} failed. See the details below.`
+              `${createdCount} ${t("uploadedAndFailed", { failed: serverErrs.length })}`,
             );
           } else {
-            toast.error(
-              `All ${serverErrs.length} row(s) failed. See the details below.`
-            );
+            toast.error(t("allRowsFailed", { count: serverErrs.length }));
           }
           refetchEmployees();
           setParsedEmployees([]);
           setUploadProgress(0);
         } else {
-          toast.success(result.message || `Successfully uploaded employee(s)`);
+          toast.success(result.message || t("employeesUploadedSuccess"));
           refetchEmployees();
           setIsBulkUploadDialogOpen(false);
           setParsedEmployees([]);
@@ -733,14 +740,14 @@ export default function EmployeesPage() {
           setUploadProgress(0);
         }
       } else {
-        toast.error(result.error || "Failed to upload employees");
+        toast.error(result.error || t("failedToUploadEmployees"));
         if (result.data?.errors?.length > 0) {
           setServerErrors(result.data.errors);
         }
       }
     } catch (error) {
       console.error("Error uploading employees:", error);
-      toast.error("An error occurred while uploading employees");
+      toast.error(t("errorUploadingEmployees"));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -783,28 +790,28 @@ export default function EmployeesPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Employees</h1>
+        <h1 className="text-3xl font-bold">{t("employees")}</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setIsBulkUploadDialogOpen(true)}
           >
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            {t("bulkUpload")}
           </Button>
           <Button onClick={() => handleOpenDialog()}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Employee
+            {t("addEmployee")}
           </Button>
         </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-blue-700">Total Employees</p>
-          <p className="text-2xl font-bold text-blue-900">
-            {totalEmployees}
+          <p className="text-sm font-medium text-blue-700">
+            {t("totalEmployees")}
           </p>
+          <p className="text-2xl font-bold text-blue-900">{totalEmployees}</p>
         </div>
         {/* <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-green-700">Current Page</p>
@@ -813,14 +820,14 @@ export default function EmployeesPage() {
           </p>
         </div> */}
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-purple-700">Page</p>
+          <p className="text-sm font-medium text-purple-700">{t("page")}</p>
           <p className="text-2xl font-bold text-purple-900">
             {contextPagination.currentPage} / {contextPagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-amber-700">
-            {searchTerm ? "Search Results" : "Viewing"}
+            {searchTerm ? t("searchResults") : t("viewing")}
           </p>
           <p className="text-2xl font-bold text-amber-900">
             {displayEmployees.length}
@@ -834,7 +841,7 @@ export default function EmployeesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by name, Iqama ID, or phone..."
+              placeholder={t("searchEmployeesPlaceholder")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -857,7 +864,7 @@ export default function EmployeesPage() {
               onClick={() => setTypeFilter("all")}
               className="h-8"
             >
-              All Types
+              {t("allTypes")}
             </Button>
             <Button
               size="sm"
@@ -865,7 +872,7 @@ export default function EmployeesPage() {
               onClick={() => setTypeFilter("employee")}
               className="h-8"
             >
-              Employees
+              {t("employees")}
             </Button>
             <Button
               size="sm"
@@ -873,7 +880,7 @@ export default function EmployeesPage() {
               onClick={() => setTypeFilter("agent")}
               className="h-8"
             >
-              Agents
+              {t("agents")}
             </Button>
           </div>
 
@@ -885,17 +892,19 @@ export default function EmployeesPage() {
             className="h-8"
           >
             <UserX className="mr-2 h-4 w-4" />
-            {showTerminated ? "Showing Terminated" : "Show Terminated"}
+            {showTerminated ? t("showingTerminated") : t("showTerminated")}
           </Button>
         </div>
 
         {/* Active Filters Display */}
         {(searchTerm || showTerminated || typeFilter !== "all") && (
           <div className="flex flex-wrap gap-2 items-center text-xs">
-            <span className="text-gray-500 font-medium">Active Filters:</span>
+            <span className="text-gray-500 font-medium">
+              {t("activeFilters")}
+            </span>
             {searchTerm && (
               <Badge variant="secondary" className="gap-1">
-                Search: {searchTerm}
+                {t("search")}: {searchTerm}
                 <X
                   className="h-3 w-3 cursor-pointer"
                   onClick={() => setSearchTerm("")}
@@ -904,7 +913,8 @@ export default function EmployeesPage() {
             )}
             {typeFilter !== "all" && (
               <Badge variant="secondary" className="gap-1">
-                Type: {typeFilter === "employee" ? "Employees" : "Agents"}
+                {t("type")}:{" "}
+                {typeFilter === "employee" ? t("employees") : t("agents")}
                 <X
                   className="h-3 w-3 cursor-pointer"
                   onClick={() => setTypeFilter("all")}
@@ -913,7 +923,7 @@ export default function EmployeesPage() {
             )}
             {showTerminated && (
               <Badge variant="destructive" className="gap-1">
-                Terminated Only
+                {t("terminatedOnly")}
                 <X
                   className="h-3 w-3 cursor-pointer"
                   onClick={() => setShowTerminated(false)}
@@ -929,28 +939,28 @@ export default function EmployeesPage() {
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SI NO
+                {t("siNo")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Image
+                {t("image")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
+                {t("name")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Iqama ID
+                {t("iqamaId")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
+                {t("phone")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
+                {t("type")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned Vehicles
+                {t("assignedVehicles")}
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                {t("actions")}
               </th>
             </tr>
           </thead>
@@ -970,7 +980,12 @@ export default function EmployeesPage() {
 
               return (
                 <tr key={employee._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">{(contextPagination.currentPage - 1) * contextPagination.itemsPerPage + i + 1}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {(contextPagination.currentPage - 1) *
+                      contextPagination.itemsPerPage +
+                      i +
+                      1}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {employee.imageUrls && employee.imageUrls.length > 0 ? (
                       <Image
@@ -1003,20 +1018,25 @@ export default function EmployeesPage() {
                         employee.type === "agent" ? "default" : "secondary"
                       }
                     >
-                      {employee.type === "agent" ? "Agent" : "Employee"}
+                      {employee.type === "agent" ? t("agent") : t("employee")}
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-500">
                     {assignedVehicles ? (
                       <div className="space-y-1">
                         {assignedVehicles.split(", ").map((vehicle, idx) => (
-                          <div key={idx} className="text-xs bg-blue-50 px-2 py-1 rounded text-blue-700 font-medium">
+                          <div
+                            key={idx}
+                            className="text-xs bg-blue-50 px-2 py-1 rounded text-blue-700 font-medium"
+                          >
                             {vehicle}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-400 italic text-xs">No vehicles</span>
+                      <span className="text-gray-400 italic text-xs">
+                        {t("noVehicles")}
+                      </span>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1024,7 +1044,7 @@ export default function EmployeesPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleViewEmployee(employee)}
-                      title="View Employee"
+                      title={t("viewEmployee")}
                     >
                       <Eye className="h-4 w-4 text-blue-500" />
                     </Button>
@@ -1032,7 +1052,7 @@ export default function EmployeesPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleOpenDialog(employee)}
-                      title="Edit Employee"
+                      title={t("editEmployee")}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -1040,7 +1060,7 @@ export default function EmployeesPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleTerminateClick(employee)}
-                      title="Terminate Employee"
+                      title={t("terminateEmployee")}
                     >
                       <UserX className="h-4 w-4 text-red-500" />
                     </Button>
@@ -1048,7 +1068,7 @@ export default function EmployeesPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteClick(employee)}
-                      title="Delete Employee"
+                      title={t("deleteEmployee")}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
@@ -1060,9 +1080,7 @@ export default function EmployeesPage() {
         </table>
         {displayEmployees.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            {searchTerm
-              ? "No employees found matching your search"
-              : "No employees found"}
+            {searchTerm ? t("noEmployeesFoundSearch") : t("noEmployeesFound")}
           </div>
         )}
 
@@ -1080,7 +1098,7 @@ export default function EmployeesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingEmployee ? "Edit Employee" : "Add Employee"}
+              {editingEmployee ? t("editEmployee") : t("addEmployee")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
@@ -1099,7 +1117,10 @@ export default function EmployeesPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User className="w-16 h-16 text-blue-400" strokeWidth={1.5} />
+                      <User
+                        className="w-16 h-16 text-blue-400"
+                        strokeWidth={1.5}
+                      />
                     )}
                   </div>
 
@@ -1134,19 +1155,21 @@ export default function EmployeesPage() {
 
                 {uploadingImage && (
                   <p className="text-xs text-blue-600 mt-3 flex items-center gap-2">
-                    <LoadingSpinner /> Uploading...
+                    <LoadingSpinner /> {t("uploading")}
                   </p>
                 )}
                 {imageUrls.length > 0 && !uploadingImage && (
                   <p className="text-xs text-gray-500 mt-3">
-                    {imageFile ? "Photo selected - will upload on save" : "Photo uploaded"}
+                    {imageFile
+                      ? t("photoSelectedWillUpload")
+                      : t("photoUploaded")}
                   </p>
                 )}
               </div>
 
               {/* Employee Details */}
               <div>
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">{t("name")}</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -1159,7 +1182,7 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="iqamaId">Iqama ID (10 digits)</Label>
+                <Label htmlFor="iqamaId">{t("iqamaIdDigits")}</Label>
                 <Input
                   id="iqamaId"
                   value={formData.iqamaId}
@@ -1173,7 +1196,7 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="phone">Phone (+966XXXXXXXXX) - Optional</Label>
+                <Label htmlFor="phone">{t("phoneOptional")}</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
@@ -1187,7 +1210,7 @@ export default function EmployeesPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="type">Type</Label>
+                <Label htmlFor="type">{t("type")}</Label>
                 <Select
                   value={formData.type}
                   onValueChange={(value) =>
@@ -1198,16 +1221,16 @@ export default function EmployeesPage() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={t("selectType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="employee">Employee</SelectItem>
-                    <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="employee">{t("employee")}</SelectItem>
+                    <SelectItem value="agent">{t("agent")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="joinDate">Join Date</Label>
+                <Label htmlFor="joinDate">{t("joinDate")}</Label>
                 <Input
                   id="joinDate"
                   type="date"
@@ -1218,13 +1241,13 @@ export default function EmployeesPage() {
                 />
               </div>
               <div>
-                <Label>Assign Vehicles (Optional)</Label>
+                <Label>{t("assignVehiclesOptional")}</Label>
                 {/* Vehicle Search */}
                 <div className="mt-2 mb-2">
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search vehicles..."
+                      placeholder={t("searchVehiclesPlaceholder")}
                       value={vehicleSearchTerm}
                       onChange={(e) => setVehicleSearchTerm(e.target.value)}
                       className="pl-8 h-9"
@@ -1234,31 +1257,38 @@ export default function EmployeesPage() {
                 <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
                   {contextVehicles.length === 0 ? (
                     <p className="text-sm text-gray-500">
-                      No vehicles available
+                      {t("noVehiclesAvailable")}
                     </p>
                   ) : (
                     (() => {
                       // Filter vehicles based on search term
-                      const filteredVehicles = contextVehicles.filter((vehicle) => {
-                        const searchLower = vehicleSearchTerm.toLowerCase();
-                        return (
-                          vehicle.number.toLowerCase().includes(searchLower) ||
-                          vehicle.name.toLowerCase().includes(searchLower)
-                        );
-                      });
+                      const filteredVehicles = contextVehicles.filter(
+                        (vehicle) => {
+                          const searchLower = vehicleSearchTerm.toLowerCase();
+                          return (
+                            vehicle.number
+                              .toLowerCase()
+                              .includes(searchLower) ||
+                            vehicle.name.toLowerCase().includes(searchLower)
+                          );
+                        },
+                      );
 
                       // Sort vehicles so checked ones appear at top
-                      const sortedVehicles = [...filteredVehicles].sort((a, b) => {
-                        const aIsChecked = selectedVehicles.includes(a._id);
-                        const bIsChecked = selectedVehicles.includes(b._id);
-                        if (aIsChecked === bIsChecked) return 0;
-                        return aIsChecked ? -1 : 1;
-                      });
+                      const sortedVehicles = [...filteredVehicles].sort(
+                        (a, b) => {
+                          const aIsChecked = selectedVehicles.includes(a._id);
+                          const bIsChecked = selectedVehicles.includes(b._id);
+                          if (aIsChecked === bIsChecked) return 0;
+                          return aIsChecked ? -1 : 1;
+                        },
+                      );
 
                       if (sortedVehicles.length === 0) {
                         return (
                           <p className="text-sm text-gray-500 italic">
-                            No vehicles found matching &quot;{vehicleSearchTerm}&quot;
+                            {t("noVehiclesFoundMatching")} &quot;
+                            {vehicleSearchTerm}&quot;
                           </p>
                         );
                       }
@@ -1281,8 +1311,8 @@ export default function EmployeesPage() {
                               } else {
                                 setSelectedVehicles(
                                   selectedVehicles.filter(
-                                    (id) => id !== vehicle._id
-                                  )
+                                    (id) => id !== vehicle._id,
+                                  ),
                                 );
                               }
                             }}
@@ -1306,7 +1336,7 @@ export default function EmployeesPage() {
                                 empId &&
                                 empId !== editingEmployee?._id && (
                                   <span className="text-xs text-red-500 ml-2">
-                                    (Already assigned)
+                                    {t("alreadyAssigned")}
                                   </span>
                                 )
                               );
@@ -1319,7 +1349,7 @@ export default function EmployeesPage() {
                 </div>
                 {selectedVehicles.length > 0 && (
                   <p className="text-xs text-gray-600 mt-1">
-                    {selectedVehicles.length} vehicle(s) selected
+                    {selectedVehicles.length} {t("vehiclesSelected")}
                   </p>
                 )}
               </div>
@@ -1334,16 +1364,18 @@ export default function EmployeesPage() {
                 onClick={handleCloseDialog}
                 disabled={isSubmitting}
               >
-                Cancel
+                {t("cancel")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner />
-                    {editingEmployee ? "Updating..." : "Creating..."}
+                    {editingEmployee ? t("updating") : t("creating")}
                   </>
+                ) : editingEmployee ? (
+                  t("update")
                 ) : (
-                  editingEmployee ? "Update" : "Create"
+                  t("create")
                 )}
               </Button>
             </DialogFooter>
@@ -1355,14 +1387,15 @@ export default function EmployeesPage() {
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Employee Details</DialogTitle>
+            <DialogTitle>{t("employeeDetails")}</DialogTitle>
           </DialogHeader>
           {viewingEmployee && (
             <div className="space-y-4">
               {/* Profile Photo Section - Top */}
               <div className="flex flex-col items-center justify-center pb-4 border-b">
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200 border-4 border-blue-300 shadow-lg flex items-center justify-center mb-3">
-                  {viewingEmployee.imageUrls && viewingEmployee.imageUrls.length > 0 ? (
+                  {viewingEmployee.imageUrls &&
+                  viewingEmployee.imageUrls.length > 0 ? (
                     <Image
                       src={viewingEmployee.imageUrls[0]}
                       alt="Profile photo"
@@ -1371,40 +1404,53 @@ export default function EmployeesPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-16 h-16 text-blue-400" strokeWidth={1.5} />
+                    <User
+                      className="w-16 h-16 text-blue-400"
+                      strokeWidth={1.5}
+                    />
                   )}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800">{viewingEmployee.name}</h3>
+                <h3 className="text-xl font-semibold text-gray-800">
+                  {viewingEmployee.name}
+                </h3>
               </div>
 
               {/* Employee Details - Read Only */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-gray-600">Name</Label>
+                  <Label className="text-gray-600">{t("name")}</Label>
                   <p className="text-lg font-medium">{viewingEmployee.name}</p>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Iqama ID</Label>
-                  <p className="text-lg font-medium">{viewingEmployee.iqamaId}</p>
+                  <Label className="text-gray-600">{t("iqamaId")}</Label>
+                  <p className="text-lg font-medium">
+                    {viewingEmployee.iqamaId}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Phone</Label>
-                  <p className="text-lg font-medium">{viewingEmployee.phone || "-"}</p>
+                  <Label className="text-gray-600">{t("phone")}</Label>
+                  <p className="text-lg font-medium">
+                    {viewingEmployee.phone || "-"}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Type</Label>
+                  <Label className="text-gray-600">{t("type")}</Label>
                   <div>
                     <Badge
                       variant={
-                        viewingEmployee.type === "agent" ? "default" : "secondary"
+                        viewingEmployee.type === "agent"
+                          ? "default"
+                          : "secondary"
                       }
                     >
-                      {viewingEmployee.type === "agent" ? "Agent" : "Employee"}
+                      {viewingEmployee.type === "agent"
+                        ? t("agent")
+                        : t("employee")}
                     </Badge>
                   </div>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Join Date</Label>
+                  <Label className="text-gray-600">{t("joinDate")}</Label>
                   <p className="text-lg font-medium">
                     {viewingEmployee.joinDate
                       ? new Date(viewingEmployee.joinDate).toLocaleDateString()
@@ -1412,21 +1458,28 @@ export default function EmployeesPage() {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-gray-600">Assigned Vehicles</Label>
+                  <Label className="text-gray-600">
+                    {t("assignedVehicles")}
+                  </Label>
                   <p className="text-lg font-medium">
                     {(() => {
                       const assignedVehicles = contextVehicles
                         .filter((v) => {
                           const empId =
-                            typeof v.employeeId === "object" && v.employeeId !== null
+                            typeof v.employeeId === "object" &&
+                            v.employeeId !== null
                               ? (v.employeeId as any)._id
                               : v.employeeId;
                           return empId === viewingEmployee._id;
                         })
                         .map((v) => v.number)
                         .join(", ");
-                      return assignedVehicles || (
-                        <span className="text-gray-400 italic text-sm">No vehicles</span>
+                      return (
+                        assignedVehicles || (
+                          <span className="text-gray-400 italic text-sm">
+                            {t("noVehicles")}
+                          </span>
+                        )
                       );
                     })()}
                   </p>
@@ -1440,7 +1493,7 @@ export default function EmployeesPage() {
               variant="outline"
               onClick={() => setIsViewDialogOpen(false)}
             >
-              Close
+              {t("close")}
             </Button>
             <Button
               type="button"
@@ -1452,7 +1505,7 @@ export default function EmployeesPage() {
               }}
             >
               <Edit className="mr-2 h-4 w-4" />
-              Edit
+              {t("edit")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1471,20 +1524,18 @@ export default function EmployeesPage() {
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>Bulk Upload Employees</DialogTitle>
+            <DialogTitle>{t("bulkUploadEmployees")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 overflow-y-auto flex-1 pr-2">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="font-semibold text-blue-900 mb-2">
-                Instructions:
+                {t("instructions")}
               </h3>
               <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
-                <li>Download the Excel template below</li>
-                <li>
-                  Fill in employee details following the format in the template
-                </li>
-                <li>Make sure all required fields are filled correctly</li>
-                <li>Upload the completed Excel file</li>
+                <li>{t("bulkStep1")}</li>
+                <li>{t("bulkStep2")}</li>
+                <li>{t("bulkStep3")}</li>
+                <li>{t("bulkStep4")}</li>
               </ol>
             </div>
 
@@ -1497,7 +1548,7 @@ export default function EmployeesPage() {
                   className="w-full"
                 >
                   <Download className="mr-2 h-4 w-4" />
-                  Download Template
+                  {t("downloadTemplate")}
                 </Button>
 
                 <div className="relative">
@@ -1516,7 +1567,7 @@ export default function EmployeesPage() {
                     variant="outline"
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    Select Excel File
+                    {t("selectExcelFile")}
                   </Button>
                 </div>
               </div>
@@ -1526,12 +1577,16 @@ export default function EmployeesPage() {
             {parsedEmployees.length > 0 && (
               <div className="border border-gray-300 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Preview ({parsedEmployees.length} employee{parsedEmployees.length > 1 ? 's' : ''} ready)
+                  {t("preview")} ({parsedEmployees.length} {t("employeesReady")}
+                  )
                 </h3>
                 <div className="max-h-48 overflow-y-auto bg-gray-50 rounded p-3">
                   <div className="space-y-2 text-sm">
                     {parsedEmployees.slice(0, 5).map((emp, idx) => (
-                      <div key={idx} className="flex justify-between items-center border-b border-gray-200 pb-2">
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center border-b border-gray-200 pb-2"
+                      >
                         <span className="font-medium">{emp.name}</span>
                         <span className="text-gray-600">{emp.iqamaId}</span>
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -1546,7 +1601,6 @@ export default function EmployeesPage() {
                     )}
                   </div>
                 </div>
-
               </div>
             )}
 
@@ -1554,8 +1608,7 @@ export default function EmployeesPage() {
             {validationErrors.length > 0 && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm">
                 <p className="font-semibold text-yellow-800 mb-1">
-                  {validationErrors.length} row(s) had problems and were not
-                  included:
+                  {validationErrors.length} {t("rowsHadProblems")}
                 </p>
                 <div className="max-h-40 overflow-y-auto text-yellow-700 space-y-0.5">
                   {validationErrors.map((err, idx) => (
@@ -1571,7 +1624,7 @@ export default function EmployeesPage() {
             {serverErrors.length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded text-sm">
                 <p className="font-semibold text-red-800 mb-2">
-                  {serverErrors.length} row(s) failed to upload:
+                  {serverErrors.length} {t("rowsFailedToUpload")}
                 </p>
                 <div className="max-h-52 overflow-y-auto space-y-2">
                   {serverErrors.map((err, idx) => (
@@ -1580,7 +1633,7 @@ export default function EmployeesPage() {
                       className="text-xs text-red-700 border-b border-red-100 pb-1"
                     >
                       <span className="font-medium">
-                        Row {err.row}
+                        {t("row")} {err.row}
                         {err.name && err.name !== "Unknown"
                           ? ` (${err.name})`
                           : ""}
@@ -1597,7 +1650,7 @@ export default function EmployeesPage() {
             {isUploading && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-gray-600">
-                  <span>Uploading employees...</span>
+                  <span>{t("uploadingEmployees")}</span>
                   <span>{uploadProgress}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -1610,30 +1663,33 @@ export default function EmployeesPage() {
             )}
 
             <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-semibold text-sm mb-2">Template Format:</h4>
+              <h4 className="font-semibold text-sm mb-2">
+                {t("templateFormat")}
+              </h4>
               <div className="text-xs text-gray-600 space-y-1">
                 <p>
-                  <strong>Name:</strong> Employee full name
+                  <strong>{t("templateFieldName")}</strong>{" "}
+                  {t("templateFieldNameDesc")}
                 </p>
                 <p>
-                  <strong>Iqama ID:</strong> Exactly 10 digits (e.g.,
-                  1234567890)
+                  <strong>{t("templateFieldIqama")}</strong>{" "}
+                  {t("templateFieldIqamaDesc")}
                 </p>
                 <p>
-                  <strong>Phone:</strong> Format 966XXXXXXXXX or +966XXXXXXXXX
-                  (e.g., 966501234567) - Optional
+                  <strong>{t("templateFieldPhone")}</strong>{" "}
+                  {t("templateFieldPhoneDesc")}
                 </p>
                 <p>
-                  <strong>Type:</strong> Must be the English word "employee" or
-                  "agent"
+                  <strong>{t("templateFieldType")}</strong>{" "}
+                  {t("templateFieldTypeDesc")}
                 </p>
                 <p>
-                  <strong>Join Date:</strong> Format YYYY-MM-DD (e.g.,
-                  2024-01-15) - Optional
+                  <strong>{t("templateFieldJoinDate")}</strong>{" "}
+                  {t("templateFieldJoinDateDesc")}
                 </p>
                 <p>
-                  <strong>Vehicle Number:</strong> Vehicle number to assign
-                  (e.g., ABC-1234) - Optional
+                  <strong>{t("templateFieldVehicle")}</strong>{" "}
+                  {t("templateFieldVehicleDesc")}
                 </p>
               </div>
             </div>
@@ -1651,7 +1707,7 @@ export default function EmployeesPage() {
               }}
               disabled={isUploading}
             >
-              Close
+              {t("close")}
             </Button>
             {parsedEmployees.length > 0 && (
               <Button
@@ -1660,7 +1716,12 @@ export default function EmployeesPage() {
                 disabled={isUploading}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                {isUploading ? "Uploading..." : `Upload ${parsedEmployees.length} Employee${parsedEmployees.length > 1 ? 's' : ''}`}
+                {isUploading
+                  ? t("uploading")
+                  : t("uploadEmployeeCount", {
+                      count: parsedEmployees.length,
+                      plural: parsedEmployees.length > 1 ? "s" : "",
+                    })}
               </Button>
             )}
           </DialogFooter>
@@ -1674,14 +1735,14 @@ export default function EmployeesPage() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Terminate Employee</DialogTitle>
+            <DialogTitle>{t("terminateEmployee")}</DialogTitle>
           </DialogHeader>
           {terminatingEmployee && (
             <form onSubmit={handleTerminateConfirm}>
               <div className="space-y-4">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
                   <p className="text-sm text-yellow-800">
-                    <strong>Warning:</strong> You are about to terminate{" "}
+                    <strong>{t("warning")}</strong> {t("aboutToTerminate")}{" "}
                     <strong>{terminatingEmployee.name}</strong>.
                   </p>
                   {contextVehicles.filter((v) => {
@@ -1704,14 +1765,15 @@ export default function EmployeesPage() {
                           }).length
                         }
                       </strong>{" "}
-                      assigned vehicle(s) will be unassigned.
+                      {t("assignedVehiclesWillBeUnassigned")}
                     </p>
                   )}
                 </div>
 
                 <div>
                   <Label htmlFor="terminationDate">
-                    Termination Date <span className="text-red-500">*</span>
+                    {t("terminationDate")}{" "}
+                    <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="terminationDate"
@@ -1729,7 +1791,7 @@ export default function EmployeesPage() {
 
                 <div>
                   <Label htmlFor="terminationReason">
-                    Reason for Termination{" "}
+                    {t("reasonForTermination")}{" "}
                     <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -1741,7 +1803,7 @@ export default function EmployeesPage() {
                         reason: e.target.value,
                       })
                     }
-                    placeholder="Enter reason for termination"
+                    placeholder={t("enterTerminationReason")}
                     required
                   />
                 </div>
@@ -1752,10 +1814,10 @@ export default function EmployeesPage() {
                   variant="outline"
                   onClick={() => setIsTerminateDialogOpen(false)}
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button type="submit" variant="destructive">
-                  Terminate Employee
+                  {t("terminateEmployee")}
                 </Button>
               </DialogFooter>
             </form>
@@ -1768,9 +1830,11 @@ export default function EmployeesPage() {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleDeleteConfirm}
-        title="Delete Employee"
-        description={`Are you sure you want to delete ${deletingEmployee?.name || 'this employee'}? This action cannot be undone.`}
-        confirmText="Delete"
+        title={t("deleteEmployeeConfirmTitle")}
+        description={t("deleteEmployeeConfirmDesc", {
+          name: deletingEmployee?.name || t("thisEmployee"),
+        })}
+        confirmText={t("delete")}
         variant="destructive"
       />
     </div>
