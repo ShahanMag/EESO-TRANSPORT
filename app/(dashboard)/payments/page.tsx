@@ -839,16 +839,7 @@ export default function PaymentsPage() {
                                   {formatCurrency(payment.dues)}
                                 </p>
                               </div>
-                              {payment.updatedBy && (
-                                <div className="text-right">
-                                  <p className="text-xs text-gray-500">
-                                    Updated By
-                                  </p>
-                                  <p className="text-sm font-semibold text-blue-600">
-                                    {payment.updatedBy?.username}
-                                  </p>
-                                </div>
-                              )}
+
                               <div className="flex space-x-1">
                                 <Button
                                   variant="outline"
@@ -902,6 +893,9 @@ export default function PaymentsPage() {
                                         <th className="px-4 py-2 text-left text-xs font-medium text-amber-800">
                                           Remarks
                                         </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-800">
+                                          Updated By
+                                        </th>
                                         <th className="px-4 py-2 text-right text-xs font-medium text-amber-800">
                                           Actions
                                         </th>
@@ -924,6 +918,9 @@ export default function PaymentsPage() {
                                             </td>
                                             <td className="px-4 py-2 text-sm text-gray-600">
                                               {installment.remarks || "-"}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm font-semibold capitalize text-gray-600">
+                                              {payment.updatedBy?.username}
                                             </td>
                                             <td className="px-4 py-2 text-right">
                                               <Button

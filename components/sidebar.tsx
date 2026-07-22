@@ -1,27 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import {
-  Users,
-  Car,
-  FileText,
-  BarChart3,
-  Home,
-  Phone,
-  Mail,
-  CreditCard,
-  Settings,
-  LogOut,
-  UserCircle,
-  Calendar,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { useYearFilter } from "@/contexts/YearFilterContext";
 import {
   Select,
   SelectContent,
@@ -29,6 +8,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import { cn } from "@/lib/utils";
+import {
+  BarChart3,
+  Calendar,
+  Car,
+  CreditCard,
+  FileText,
+  Home,
+  LogOut,
+  Mail,
+  Phone,
+  Settings,
+  UserCircle,
+  Users,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -72,8 +72,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
 
   async function fetchUser() {
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, {
-      });
+      const res = await fetch(`${API_URL}/api/auth/me`, {});
       const data = await res.json();
       if (data.success) {
         setUser(data.data);
@@ -110,18 +109,20 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-gray-900 text-white">
-      {/* Logo Only Section */}
-      <div className="flex h-20 items-center justify-center px-1 border-b border-gray-800">
-        <Image
-          src="/images/Logo2.jpg"
-          alt="EESA Transport Co Logo"
-          width={280}
-          height={60}
-          className="rounded"
-        />
+    <div className="flex h-full w-full flex-col bg-black text-white">
+      {/* Logo Section */}
+      <div className="border-b border-gray-800 px-4 py-4">
+        <div className="relative h-24 w-full">
+          <Image
+            src="/images/new-logo2.jpeg"
+            alt="Al Jawhara Logo"
+            fill
+            priority
+            className="object-contain"
+            sizes="220px"
+          />
+        </div>
       </div>
-
       {/* Year Filter Section */}
       <div className="px-3 py-4 border-b border-gray-800">
         <div className="flex items-center gap-2 mb-2">
@@ -165,7 +166,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
                   ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                  : "text-gray-300 hover:bg-gray-800 hover:text-white",
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -192,7 +193,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-gray-800 text-white"
-                    : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                    : "text-gray-300 hover:bg-gray-800 hover:text-white",
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -254,7 +255,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
           </div>
         </div>
         <p className="text-xs text-gray-500 pt-2 border-t border-gray-800">
-          © 2025 EESA Transport Co
+          © 2025 Al Jawhara
         </p>
       </div>
     </div>
