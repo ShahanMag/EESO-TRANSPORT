@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { Toaster } from "sonner";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-import { useYearFilter } from "@/contexts/YearFilterContext";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { VehicleProvider } from "@/contexts/VehicleContext";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { EmployeeProvider } from "@/contexts/EmployeeContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
+import { VehicleProvider } from "@/contexts/VehicleContext";
+import { useYearFilter } from "@/contexts/YearFilterContext";
+import { Menu } from "lucide-react";
+import { useState } from "react";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -48,7 +48,7 @@ export default function DashboardLayout({
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <h2 className="font-semibold text-gray-900">EESA Transport Co</h2>
+                <h2 className="font-semibold text-gray-900">Al Jawhara</h2>
               </div>
 
               {/* Year Change Loader Overlay */}
@@ -56,7 +56,9 @@ export default function DashboardLayout({
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
                   <div className="text-center">
                     <LoadingSpinner />
-                    <p className="mt-4 text-gray-600 font-medium">Loading data for selected year...</p>
+                    <p className="mt-4 text-gray-600 font-medium">
+                      Loading data for selected year...
+                    </p>
                   </div>
                 </div>
               )}

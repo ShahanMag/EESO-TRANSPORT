@@ -7,8 +7,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "EESA Transport Co",
-  description: "EESA Transport Co",
+  title: "Al Jawhara",
+  description: "Al Jawhara",
   icons: {
     icon: "/images/Logo.jpeg",
     apple: "/images/Logo.jpeg",

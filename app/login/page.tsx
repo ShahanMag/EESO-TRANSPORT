@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Shield, Loader2, Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
-import Image from "next/image";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { setToken } from "@/lib/auth-token";
+import { Eye, EyeOff, Loader2, Shield } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -83,7 +83,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Image
               src="/images/Logo2.jpg"
-              alt="EESA Transport Co Logo"
+              alt="Al Jawhara Logo"
               width={200}
               height={100}
               className="rounded"
