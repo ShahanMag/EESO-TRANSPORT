@@ -109,17 +109,17 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-black text-white">
+    <div className="flex h-full w-full flex-col overflow-y-auto bg-gray-900 text-white hide-scrollbar">
       {/* Logo Section */}
       <div className="border-b border-gray-800 px-4 py-4">
         <div className="relative h-24 w-full">
           <Image
-            src="/images/new-logo2.jpeg"
+            src="/images/new-logo3.PNG"
             alt="Al Jawhara Logo"
             fill
             priority
             className="object-contain"
-            sizes="220px"
+            sizes="200px"
           />
         </div>
       </div>
@@ -206,7 +206,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
 
       {/* User Section */}
 
-      <div className="border-t border-gray-800 p-4">
+      <div className="border-t border-gray-800 p-4 shrink-0">
         <div className="bg-gray-800 rounded-lg p-3 mb-3">
           <div className="flex items-center space-x-3 mb-3">
             <UserCircle className="h-8 w-8 text-blue-400" />
@@ -233,7 +233,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
       </div>
 
       {/* Support Section */}
-      <div className="border-t border-gray-800 p-4 space-y-3">
+      <div className="border-t border-gray-800 p-4 space-y-3 shrink-0">
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Support
         </h3>

@@ -30,5 +30,20 @@
   "statusUnpaid": "غير مدفوع",
 
   "typeIncome": "دخل",
-  "typeExpense": "مصروف"
+  "typeExpense": "مصروف",
+
+  "welcomeBack": "مرحباً بعودتك",
+  "loginSubtitle": "سجّل الدخول للوصول إلى نظام إدارة النقل EESA",
+  "username": "اسم المستخدم",
+  "password": "كلمة المرور",
+  "enterUsername": "أدخل اسم المستخدم",
+  "enterPassword": "أدخل كلمة المرور",
+  "signingIn": "جارٍ تسجيل الدخول...",
+  "signIn": "تسجيل الدخول",
+  "usernameRequired": "اسم المستخدم مطلوب",
+  "passwordRequired": "كلمة المرور مطلوبة",
+  "loginSuccessful": "تم تسجيل الدخول بنجاح! جارٍ التحويل...",
+  "loginFailed": "فشل تسجيل الدخول",
+  "loginErrorOccurred": "حدث خطأ أثناء تسجيل الدخول",
+  "logoAlt": "شعار الجوهرة"
 }

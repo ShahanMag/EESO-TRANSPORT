@@ -30,5 +30,20 @@
   "statusUnpaid": "unpaid",
 
   "typeIncome": "income",
-  "typeExpense": "expense"
+  "typeExpense": "expense",
+
+  "welcomeBack": "Welcome Back",
+  "loginSubtitle": "Sign in to access EESA Transport Management System",
+  "username": "Username",
+  "password": "Password",
+  "enterUsername": "Enter your username",
+  "enterPassword": "Enter your password",
+  "signingIn": "Signing in...",
+  "signIn": "Sign In",
+  "usernameRequired": "Username is required",
+  "passwordRequired": "Password is required",
+  "loginSuccessful": "Login successful! Redirecting...",
+  "loginFailed": "Login failed",
+  "loginErrorOccurred": "An error occurred during login",
+  "logoAlt": "Al Jawhara Logo"
 }
