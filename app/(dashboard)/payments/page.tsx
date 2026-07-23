@@ -16,6 +16,13 @@ import { Label } from "@/components/ui/label";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
 import { useYearFilter } from "@/contexts/YearFilterContext";
 import { formatCurrency, formatDate, getPaymentStatus } from "@/lib/utils";
@@ -24,6 +31,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Clock,
   Edit,
   Plus,
   Search,
@@ -35,31 +43,59 @@ import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+interface UpdatedByList {
+  _id: string;
+  username: string;
+}
+
 interface Installment {
   _id: string;
   paymentId: string;
   amount: number;
   date: string;
   remarks?: string;
+  installmentType?: "REGULAR" | "DOWN_PAYMENT";
   updatedBy: UpdatedByList;
+}
+
+interface EmiExtension {
+  date: string;
+  monthsAdded: number;
+  interestPercent: number;
+  interestAmount: number;
+  dueBeforeInterest: number;
+  dueAfterInterest: number;
+  previousDueDate: string;
+  newDueDate: string;
+}
+
+interface EmiInfo {
+  periodMonths: number;
+  startDate: string;
+  dueDate: string;
+  status: "ACTIVE" | "OVERDUE" | "COMPLETED";
+  canExtend: boolean;
+  daysOverdue: number;
+  extensions: EmiExtension[];
 }
 
 interface Payment {
   _id: string;
   vehicleId: { _id: string; number: string; name: string } | null;
   totalAmount: number;
+  originalAmount?: number;
+  paymentType: "FULL" | "EMI";
+  downPayment: number;
   date: string;
   remarks?: string;
 }
 
-interface UpdatedByList {
-  _id: string;
-  username: string;
-}
 interface PaymentWithInstallments extends Payment {
   installments: Installment[];
   paidAmount: number;
   dues: number;
+  status: "unpaid" | "partial" | "paid";
+  emi: EmiInfo | null;
   updatedBy: UpdatedByList;
 }
 
@@ -94,8 +130,12 @@ export default function PaymentsPage() {
   });
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [isInstallmentDialogOpen, setIsInstallmentDialogOpen] = useState(false);
-  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [isExtendEmiDialogOpen, setIsExtendEmiDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] =
+    useState<PaymentWithInstallments | null>(null);
   const [selectedPayment, setSelectedPayment] =
+    useState<PaymentWithInstallments | null>(null);
+  const [extendingPayment, setExtendingPayment] =
     useState<PaymentWithInstallments | null>(null);
   const [editingInstallment, setEditingInstallment] =
     useState<Installment | null>(null);
@@ -113,10 +153,14 @@ export default function PaymentsPage() {
   const [vehicleSearchTerm, setVehicleSearchTerm] = useState("");
   const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [paymentFormData, setPaymentFormData] = useState({
     vehicleId: "",
     totalAmount: "",
+    paymentType: "FULL" as "FULL" | "EMI",
+    downPayment: "",
+    emiPeriodMonths: "6",
     date: new Date().toISOString().split("T")[0],
     remarks: "",
   });
@@ -127,28 +171,29 @@ export default function PaymentsPage() {
     remarks: "",
   });
 
+  const [extendFormData, setExtendFormData] = useState({
+    interestPercent: "",
+    additionalMonths: "1",
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchPayments();
   }, []);
-  console.log(payments);
 
-  // Refetch when status filter changes
   useEffect(() => {
     fetchPayments(1, pagination.itemsPerPage, searchTerm);
   }, [statusFilter, selectedYear]);
 
-  // Refetch when search term changes (with debouncing)
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPayments(1, pagination.itemsPerPage, searchTerm);
-    }, 500); // 500ms debounce
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Handle status filter toggle
   function toggleStatusFilter(status: string) {
     setStatusFilter((prev) => {
       if (prev.includes(status)) {
@@ -159,7 +204,6 @@ export default function PaymentsPage() {
     });
   }
 
-  // Filter vehicles from context based on search term
   const searchedVehicles =
     vehicleSearchTerm.trim() === ""
       ? contextVehicles
@@ -170,18 +214,14 @@ export default function PaymentsPage() {
         );
 
   useEffect(() => {
-    // Group payments by vehicle
     const groups: Map<string, VehiclePaymentGroup> = new Map();
 
-    // Process payments and group by vehicle
     payments.forEach((payment) => {
-      if (!payment.vehicleId) return; // Skip payments without vehicle
+      if (!payment.vehicleId) return;
 
       const vehicleId = payment.vehicleId._id;
 
       if (!groups.has(vehicleId)) {
-        // Create new group with vehicle info from the payment's populated vehicleId
-        // Get full vehicle from context if available
         const fullVehicle = contextVehicles.find((v) => v._id === vehicleId);
         groups.set(vehicleId, {
           vehicle: fullVehicle || {
@@ -207,7 +247,6 @@ export default function PaymentsPage() {
 
     const groupsArray = Array.from(groups.values());
     setVehicleGroups(groupsArray);
-    // No local filtering - backend handles search and status filtering
     setFilteredGroups(groupsArray);
   }, [payments]);
 
@@ -216,7 +255,7 @@ export default function PaymentsPage() {
   }
 
   function handleItemsPerPageChange(limit: number) {
-    fetchPayments(1, limit, searchTerm); // Reset to page 1 when changing items per page
+    fetchPayments(1, limit, searchTerm);
   }
 
   async function fetchPayments(
@@ -231,20 +270,16 @@ export default function PaymentsPage() {
         limit: limit.toString(),
       });
 
-      // Add search term to API call if provided
       if (search && search.trim() !== "") {
         params.append("search", search.trim());
       }
 
-      // Add status filters to API call if any are selected
       statusFilter.forEach((status) => {
         params.append("status", status);
       });
 
-      // Add year filter to API call
       params.append("year", selectedYear.toString());
 
-      // Fetch payments and all installments in parallel
       const [paymentsRes, installmentsRes] = await Promise.all([
         fetch(`${API_URL}/api/payments?${params.toString()}`, {}),
         fetch(`${API_URL}/api/installments?year=${selectedYear}`, {}),
@@ -256,7 +291,6 @@ export default function PaymentsPage() {
       ]);
 
       if (paymentsData.success) {
-        // Update pagination state
         if (paymentsData.pagination) {
           setPagination({
             currentPage: paymentsData.pagination.page,
@@ -266,12 +300,11 @@ export default function PaymentsPage() {
           });
         }
 
-        // Update summary state
         if (paymentsData.summary) {
           setSummary(paymentsData.summary);
         }
 
-        // Group installments by paymentId for faster lookup
+        // Group installments by paymentId for the history table under each payment
         const installmentsByPaymentId: Record<string, Installment[]> = {};
         if (allInstallmentsData.success) {
           allInstallmentsData.data.forEach((inst: Installment) => {
@@ -282,21 +315,15 @@ export default function PaymentsPage() {
           });
         }
 
-        // Map payments with their installments
+        // The backend already computes paidAmount/dueAmount/status/emi per payment
+        // (see computePaymentView) — trust that instead of recalculating here,
+        // so the UI can never drift out of sync with the source of truth.
         const paymentsWithInstallments = paymentsData.data.map(
-          (payment: Payment) => {
-            const installments = installmentsByPaymentId[payment._id] || [];
-            const paidAmount = installments.reduce(
-              (sum: number, inst: Installment) => sum + inst.amount,
-              0,
-            );
-            return {
-              ...payment,
-              installments,
-              paidAmount,
-              dues: payment.totalAmount - paidAmount,
-            };
-          },
+          (payment: any) => ({
+            ...payment,
+            installments: installmentsByPaymentId[payment._id] || [],
+            dues: payment.dueAmount,
+          }),
         );
 
         setPayments(paymentsWithInstallments);
@@ -318,6 +345,20 @@ export default function PaymentsPage() {
     const totalAmount = parseFloat(paymentFormData.totalAmount);
     if (isNaN(totalAmount) || totalAmount <= 0) {
       newErrors.totalAmount = "Total amount must be a positive number";
+    }
+
+    if (paymentFormData.paymentType === "EMI" && !editingPayment) {
+      const downPayment = parseFloat(paymentFormData.downPayment || "0");
+      if (isNaN(downPayment) || downPayment < 0) {
+        newErrors.downPayment = "Down payment cannot be negative";
+      } else if (!isNaN(totalAmount) && downPayment >= totalAmount) {
+        newErrors.downPayment = "Down payment must be less than total amount";
+      }
+
+      const emiPeriodMonths = parseInt(paymentFormData.emiPeriodMonths, 10);
+      if (isNaN(emiPeriodMonths) || emiPeriodMonths <= 0) {
+        newErrors.emiPeriodMonths = "EMI period must be a positive number of months";
+      }
     }
 
     setErrors(newErrors);
@@ -343,30 +384,63 @@ export default function PaymentsPage() {
     return Object.keys(newErrors).length === 0;
   }
 
+  function validateExtendForm() {
+    const newErrors: Record<string, string> = {};
+
+    const interestPercent = parseFloat(extendFormData.interestPercent);
+    if (isNaN(interestPercent) || interestPercent < 0) {
+      newErrors.interestPercent = "Interest % must be zero or a positive number";
+    }
+
+    const additionalMonths = parseInt(extendFormData.additionalMonths, 10);
+    if (!Number.isInteger(additionalMonths) || additionalMonths <= 0) {
+      newErrors.additionalMonths = "Months must be a positive whole number";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
   async function handlePaymentSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validatePaymentForm()) return;
 
+    setIsSubmitting(true);
     try {
       const url = editingPayment
         ? `/api/payments/${editingPayment._id}`
         : "/api/payments";
       const method = editingPayment ? "PUT" : "POST";
 
+      // paymentType/downPayment/emiPeriodMonths only matter on create —
+      // the PUT route ignores them intentionally (see backend comments)
+      const body: any = {
+        vehicleId: paymentFormData.vehicleId,
+        totalAmount: parseFloat(paymentFormData.totalAmount),
+        date: new Date(paymentFormData.date),
+        remarks: paymentFormData.remarks,
+      };
+
+      if (!editingPayment) {
+        body.paymentType = paymentFormData.paymentType;
+        if (paymentFormData.paymentType === "EMI") {
+          body.downPayment = parseFloat(paymentFormData.downPayment || "0");
+          body.emiPeriodMonths = parseInt(paymentFormData.emiPeriodMonths, 10);
+        }
+      }
+
       const res = await fetch(`${API_URL}${url}`, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicleId: paymentFormData.vehicleId,
-          totalAmount: parseFloat(paymentFormData.totalAmount),
-          date: new Date(paymentFormData.date),
-          remarks: paymentFormData.remarks,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
 
       if (data.success) {
+        toast.success(
+          editingPayment ? "Payment updated successfully" : "Payment created successfully",
+        );
         fetchPayments(
           pagination.currentPage,
           pagination.itemsPerPage,
@@ -379,6 +453,8 @@ export default function PaymentsPage() {
     } catch (error) {
       console.error("Error saving payment:", error);
       setErrors({ submit: "An error occurred" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -418,6 +494,45 @@ export default function PaymentsPage() {
     } catch (error) {
       console.error("Error saving installment:", error);
       setErrors({ submit: "An error occurred" });
+    }
+  }
+
+  async function handleExtendEmiSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validateExtendForm() || !extendingPayment) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/api/payments/${extendingPayment._id}/extend-emi`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interestPercent: parseFloat(extendFormData.interestPercent),
+            additionalMonths: parseInt(extendFormData.additionalMonths, 10),
+          }),
+        },
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("EMI extended successfully");
+        fetchPayments(
+          pagination.currentPage,
+          pagination.itemsPerPage,
+          searchTerm,
+        );
+        handleCloseExtendEmiDialog();
+      } else {
+        setErrors({ submit: data.error || "Failed to extend EMI" });
+      }
+    } catch (error) {
+      console.error("Error extending EMI:", error);
+      setErrors({ submit: "An error occurred while extending EMI" });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -489,12 +604,15 @@ export default function PaymentsPage() {
     }
   }
 
-  function handleOpenPaymentDialog(payment?: Payment) {
+  function handleOpenPaymentDialog(payment?: PaymentWithInstallments) {
     if (payment) {
       setEditingPayment(payment);
       setPaymentFormData({
         vehicleId: payment.vehicleId ? payment.vehicleId._id : "",
         totalAmount: payment.totalAmount.toString(),
+        paymentType: payment.paymentType || "FULL",
+        downPayment: (payment.downPayment || 0).toString(),
+        emiPeriodMonths: (payment.emi?.periodMonths || 6).toString(),
         date: new Date(payment.date).toISOString().split("T")[0],
         remarks: payment.remarks || "",
       });
@@ -503,10 +621,13 @@ export default function PaymentsPage() {
       setPaymentFormData({
         vehicleId: "",
         totalAmount: "",
+        paymentType: "FULL",
+        downPayment: "",
+        emiPeriodMonths: "6",
         date: new Date().toISOString().split("T")[0],
         remarks: "",
       });
-      setVehicleSearchTerm(""); // Reset search term
+      setVehicleSearchTerm("");
     }
     setErrors({});
     setIsPaymentDialogOpen(true);
@@ -550,6 +671,19 @@ export default function PaymentsPage() {
     setErrors({});
   }
 
+  function handleOpenExtendEmiDialog(payment: PaymentWithInstallments) {
+    setExtendingPayment(payment);
+    setExtendFormData({ interestPercent: "", additionalMonths: "1" });
+    setErrors({});
+    setIsExtendEmiDialogOpen(true);
+  }
+
+  function handleCloseExtendEmiDialog() {
+    setIsExtendEmiDialogOpen(false);
+    setExtendingPayment(null);
+    setErrors({});
+  }
+
   function toggleVehicleExpand(vehicleId: string) {
     setExpandedVehicles((prev) => {
       const newSet = new Set(prev);
@@ -585,7 +719,16 @@ export default function PaymentsPage() {
     return <Badge variant={variant}>{status}</Badge>;
   }
 
-  // Calculate overall totals
+  function getEmiStatusBadge(emi: EmiInfo) {
+    const variant =
+      emi.status === "COMPLETED"
+        ? "success"
+        : emi.status === "OVERDUE"
+          ? "danger"
+          : "default";
+    return <Badge variant={variant}>{emi.status}</Badge>;
+  }
+
   const totalAmount = filteredGroups.reduce((sum, g) => sum + g.totalAmount, 0);
   const totalPaid = filteredGroups.reduce((sum, g) => sum + g.totalPaid, 0);
   const totalDues = totalAmount - totalPaid;
@@ -805,7 +948,7 @@ export default function PaymentsPage() {
                                 )}
                               </Button>
                               <div className="flex-1">
-                                <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-3 flex-wrap gap-y-1">
                                   <p className="text-sm font-semibold text-gray-900">
                                     Payment Record - {formatDate(payment.date)}
                                   </p>
@@ -813,11 +956,25 @@ export default function PaymentsPage() {
                                     payment.totalAmount,
                                     payment.paidAmount,
                                   )}
+                                  {payment.paymentType === "EMI" && (
+                                    <Badge variant="secondary">EMI</Badge>
+                                  )}
+                                  {payment.emi && getEmiStatusBadge(payment.emi)}
                                 </div>
                                 {payment.remarks && (
                                   <p className="text-xs text-gray-500 mt-1">
                                     {payment.remarks}
                                   </p>
+                                )}
+                                {payment.emi && (
+                                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>
+                                      Due by {formatDate(payment.emi.dueDate)}
+                                      {payment.emi.status === "OVERDUE" &&
+                                        ` — ${payment.emi.daysOverdue} day(s) overdue`}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -852,6 +1009,19 @@ export default function PaymentsPage() {
                               )}
 
                               <div className="flex space-x-1">
+                                {payment.emi?.canExtend && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleOpenExtendEmiDialog(payment)
+                                    }
+                                    className="text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
+                                  >
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    Extend EMI
+                                  </Button>
+                                )}
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -886,7 +1056,7 @@ export default function PaymentsPage() {
                           </div>
 
                           {isPaymentExpanded && (
-                            <div className="mt-4 pl-8">
+                            <div className="mt-4 pl-8 space-y-4">
                               {payment.installments.length > 0 ? (
                                 <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
                                   <h4 className="text-sm font-semibold text-amber-900 mb-3">
@@ -900,6 +1070,9 @@ export default function PaymentsPage() {
                                         </th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-amber-800">
                                           Amount
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-amber-800">
+                                          Type
                                         </th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-amber-800">
                                           Remarks
@@ -925,6 +1098,18 @@ export default function PaymentsPage() {
                                             <td className="px-4 py-2 text-sm font-semibold text-green-600">
                                               {formatCurrency(
                                                 installment.amount,
+                                              )}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm">
+                                              {installment.installmentType ===
+                                              "DOWN_PAYMENT" ? (
+                                                <Badge variant="secondary">
+                                                  Down Payment
+                                                </Badge>
+                                              ) : (
+                                                <span className="text-gray-400 text-xs">
+                                                  Regular
+                                                </span>
                                               )}
                                             </td>
                                             <td className="px-4 py-2 text-sm text-gray-600">
@@ -966,10 +1151,65 @@ export default function PaymentsPage() {
                                 </div>
                               ) : (
                                 <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500 text-center border border-gray-200">
-                                  No payment history yet. Click "Add
-                                  Installment" to record a payment.
+                                  No payment history yet. Click "Installment"
+                                  to record a payment.
                                 </div>
                               )}
+
+                              {payment.emi &&
+                                payment.emi.extensions.length > 0 && (
+                                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                                    <h4 className="text-sm font-semibold text-orange-900 mb-3">
+                                      EMI Extension History
+                                    </h4>
+                                    <table className="min-w-full">
+                                      <thead>
+                                        <tr className="border-b border-orange-200">
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-800">
+                                            Date
+                                          </th>
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-800">
+                                            Interest %
+                                          </th>
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-800">
+                                            Interest Amount
+                                          </th>
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-800">
+                                            Months Added
+                                          </th>
+                                          <th className="px-4 py-2 text-left text-xs font-medium text-orange-800">
+                                            New Due Date
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-orange-100">
+                                        {payment.emi.extensions.map(
+                                          (ext, idx) => (
+                                            <tr key={idx}>
+                                              <td className="px-4 py-2 text-sm text-gray-900">
+                                                {formatDate(ext.date)}
+                                              </td>
+                                              <td className="px-4 py-2 text-sm text-gray-700">
+                                                {ext.interestPercent}%
+                                              </td>
+                                              <td className="px-4 py-2 text-sm font-semibold text-orange-700">
+                                                {formatCurrency(
+                                                  ext.interestAmount,
+                                                )}
+                                              </td>
+                                              <td className="px-4 py-2 text-sm text-gray-700">
+                                                {ext.monthsAdded}
+                                              </td>
+                                              <td className="px-4 py-2 text-sm text-gray-700">
+                                                {formatDate(ext.newDueDate)}
+                                              </td>
+                                            </tr>
+                                          ),
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
                             </div>
                           )}
                         </div>
@@ -989,7 +1229,6 @@ export default function PaymentsPage() {
         )}
       </div>
 
-      {/* Pagination */}
       <Pagination
         currentPage={pagination.currentPage}
         totalPages={pagination.totalPages}
@@ -1023,7 +1262,7 @@ export default function PaymentsPage() {
                   }
                   onSearchChange={(search) => setVehicleSearchTerm(search)}
                   loading={isSearchingVehicles}
-                  disabled={!!editingPayment} // Disable when editing
+                  disabled={!!editingPayment}
                   placeholder="Select vehicle..."
                   searchPlaceholder="Search vehicles..."
                   emptyMessage="No vehicle found."
@@ -1039,6 +1278,34 @@ export default function PaymentsPage() {
                   </p>
                 )}
               </div>
+
+              <div>
+                <Label htmlFor="paymentType">Payment Type</Label>
+                <Select
+                  value={paymentFormData.paymentType}
+                  onValueChange={(value) =>
+                    setPaymentFormData({
+                      ...paymentFormData,
+                      paymentType: value as "FULL" | "EMI",
+                    })
+                  }
+                  disabled={!!editingPayment}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FULL">Full Payment</SelectItem>
+                    <SelectItem value="EMI">EMI</SelectItem>
+                  </SelectContent>
+                </Select>
+                {editingPayment && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Payment type cannot be changed after creation
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="totalAmount">Total Amount (SAR)</Label>
                 <Input
@@ -1059,6 +1326,76 @@ export default function PaymentsPage() {
                   </p>
                 )}
               </div>
+
+              {paymentFormData.paymentType === "EMI" && !editingPayment && (
+                <>
+                  <div>
+                    <Label htmlFor="downPayment">Down Payment (SAR)</Label>
+                    <Input
+                      id="downPayment"
+                      type="number"
+                      step="0.01"
+                      value={paymentFormData.downPayment}
+                      onChange={(e) =>
+                        setPaymentFormData({
+                          ...paymentFormData,
+                          downPayment: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                    />
+                    {errors.downPayment && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.downPayment}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="emiPeriodMonths">EMI Period (Months)</Label>
+                    <Input
+                      id="emiPeriodMonths"
+                      type="number"
+                      min="1"
+                      value={paymentFormData.emiPeriodMonths}
+                      onChange={(e) =>
+                        setPaymentFormData({
+                          ...paymentFormData,
+                          emiPeriodMonths: e.target.value,
+                        })
+                      }
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Default is 6 months. After this period, the "Extend EMI"
+                      option will appear if not fully paid.
+                    </p>
+                    {errors.emiPeriodMonths && (
+                      <p className="text-sm text-red-500 mt-1">
+                        {errors.emiPeriodMonths}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {editingPayment?.paymentType === "EMI" && (
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-xs text-gray-600 space-y-1">
+                  <p>
+                    <strong>Down Payment:</strong>{" "}
+                    {formatCurrency(editingPayment.downPayment || 0)}
+                  </p>
+                  {editingPayment.emi && (
+                    <p>
+                      <strong>EMI Due Date:</strong>{" "}
+                      {formatDate(editingPayment.emi.dueDate)}
+                    </p>
+                  )}
+                  <p className="italic">
+                    EMI setup can't be edited here — use "Extend EMI" from the
+                    payment row after the due date passes.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="date">Date</Label>
                 <Input
@@ -1095,11 +1432,18 @@ export default function PaymentsPage() {
                 type="button"
                 variant="outline"
                 onClick={handleClosePaymentDialog}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingPayment ? "Update" : "Create"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting
+                  ? editingPayment
+                    ? "Updating..."
+                    : "Creating..."
+                  : editingPayment
+                    ? "Update"
+                    : "Create"}
               </Button>
             </DialogFooter>
           </form>
@@ -1189,6 +1533,114 @@ export default function PaymentsPage() {
               </Button>
               <Button type="submit">
                 {editingInstallment ? "Update" : "Add"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extend EMI Dialog */}
+      <Dialog
+        open={isExtendEmiDialogOpen}
+        onOpenChange={setIsExtendEmiDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Extend EMI</DialogTitle>
+            {extendingPayment && (
+              <p className="text-sm text-gray-500">
+                {extendingPayment.vehicleId
+                  ? extendingPayment.vehicleId.number
+                  : "Deleted Vehicle"}{" "}
+                | Current Due: {formatCurrency(extendingPayment.dues)}
+                {extendingPayment.emi &&
+                  ` | Overdue by ${extendingPayment.emi.daysOverdue} day(s)`}
+              </p>
+            )}
+          </DialogHeader>
+          <form onSubmit={handleExtendEmiSubmit}>
+            <div className="space-y-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
+                Interest will be calculated as a percentage of the current due
+                amount and added to the total. The due date will move forward
+                by the number of months you choose.
+              </div>
+              <div>
+                <Label htmlFor="interestPercent">Interest (%)</Label>
+                <Input
+                  id="interestPercent"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={extendFormData.interestPercent}
+                  onChange={(e) =>
+                    setExtendFormData({
+                      ...extendFormData,
+                      interestPercent: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. 2 for 2%"
+                />
+                {extendingPayment &&
+                  extendFormData.interestPercent &&
+                  !isNaN(parseFloat(extendFormData.interestPercent)) && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Interest amount:{" "}
+                      {formatCurrency(
+                        (extendingPayment.dues *
+                          parseFloat(extendFormData.interestPercent)) /
+                          100,
+                      )}{" "}
+                      → New total:{" "}
+                      {formatCurrency(
+                        extendingPayment.totalAmount +
+                          (extendingPayment.dues *
+                            parseFloat(extendFormData.interestPercent)) /
+                            100,
+                      )}
+                    </p>
+                  )}
+                {errors.interestPercent && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.interestPercent}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="additionalMonths">Extend By (Months)</Label>
+                <Input
+                  id="additionalMonths"
+                  type="number"
+                  min="1"
+                  value={extendFormData.additionalMonths}
+                  onChange={(e) =>
+                    setExtendFormData({
+                      ...extendFormData,
+                      additionalMonths: e.target.value,
+                    })
+                  }
+                />
+                {errors.additionalMonths && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {errors.additionalMonths}
+                  </p>
+                )}
+              </div>
+              {errors.submit && (
+                <p className="text-sm text-red-500">{errors.submit}</p>
+              )}
+            </div>
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseExtendEmiDialog}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Extending..." : "Extend EMI"}
               </Button>
             </DialogFooter>
           </form>

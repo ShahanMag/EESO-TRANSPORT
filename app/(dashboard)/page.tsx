@@ -286,11 +286,11 @@ export default function DashboardPage() {
           <ChartCarousel
             charts={[
               {
-                title: "Vehicle Payments Overview",
+                title: t("vehiclePaymentsOverview"),
                 component: <VehiclePaymentsChart payments={filteredPayments} />,
               },
               {
-                title: "Income & Expense Trends",
+                title: t("incomeExpenseTrends"),
                 component: <IncomeExpenseChart bills={filteredBills} />,
               },
             ]}

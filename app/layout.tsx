@@ -1,5 +1,5 @@
 import { AuthInterceptor } from "@/components/auth-interceptor";
-// import LanguageSwitcher from "@/components/LanguageSwitcher";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { YearFilterProvider } from "@/contexts/YearFilterContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -24,7 +24,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthInterceptor />
         <YearFilterProvider>
-          {/* <LanguageSwitcher /> */}
+          <LanguageSwitcher />
           {children}
         </YearFilterProvider>
       </body>

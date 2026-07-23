@@ -14,11 +14,13 @@ import { setToken } from "@/lib/auth-token";
 import { Eye, EyeOff, Loader2, Shield } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -31,11 +33,11 @@ export default function LoginPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.username.trim()) {
-      newErrors.username = "Username is required";
+      newErrors.username = t("usernameRequired");
     }
 
     if (!formData.password) {
-      newErrors.password = "Password is required";
+      newErrors.password = t("passwordRequired");
     }
 
     setErrors(newErrors);
@@ -60,17 +62,17 @@ export default function LoginPage() {
 
       if (data.success) {
         if (data.data?.token) setToken(data.data.token);
-        toast.success("Login successful! Redirecting...");
+        toast.success(t("loginSuccessful"));
         // Full page reload so all context providers remount with valid auth
         window.location.href = "/";
       } else {
-        toast.error(data.error || "Login failed");
-        setErrors({ submit: data.error || "Login failed" });
+        toast.error(data.error || t("loginFailed"));
+        setErrors({ submit: data.error || t("loginFailed") });
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("An error occurred during login");
-      setErrors({ submit: "An error occurred during login" });
+      toast.error(t("loginErrorOccurred"));
+      setErrors({ submit: t("loginErrorOccurred") });
     } finally {
       setLoading(false);
     }
@@ -82,28 +84,30 @@ export default function LoginPage() {
         <CardHeader className="space-y-1 text-center pb-8">
           <div className="flex justify-center mb-4">
             <Image
-              src="/images/Logo2.jpg"
-              alt="Al Jawhara Logo"
+              src="/images/new-logo3.PNG"
+              alt={t("logoAlt")}
               width={200}
               height={100}
               className="rounded"
             />
           </div>
-          <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
+          <CardTitle className="text-3xl font-bold">
+            {t("welcomeBack")}
+          </CardTitle>
           <CardDescription className="text-base">
-            Sign in to access EESA Transport Management System
+            {t("loginSubtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="username" className="text-base">
-                Username
+                {t("username")}
               </Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Enter your username"
+                placeholder={t("enterUsername")}
                 value={formData.username}
                 onChange={(e) =>
                   setFormData({ ...formData, username: e.target.value })
@@ -119,13 +123,13 @@ export default function LoginPage() {
 
             <div>
               <Label htmlFor="password" className="text-base">
-                Password
+                {t("password")}
               </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder={t("enterPassword")}
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
@@ -165,12 +169,12 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Signing in...
+                  {t("signingIn")}
                 </>
               ) : (
                 <>
                   <Shield className="mr-2 h-5 w-5" />
-                  Sign In
+                  {t("signIn")}
                 </>
               )}
             </Button>
