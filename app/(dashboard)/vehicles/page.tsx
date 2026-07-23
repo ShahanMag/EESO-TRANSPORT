@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Pagination } from "@/components/ui/pagination";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Select,
   SelectContent,
@@ -19,25 +21,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Edit, Trash2, Upload, Download, XCircle, Ban } from "lucide-react";
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useEmployees } from "@/contexts/EmployeeContext";
+import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
+import { exportToExcel } from "@/lib/excel-utils";
 import {
-  SearchableSelect,
-  type SearchableSelectOption,
-} from "@/components/ui/searchable-select";
-import { Pagination } from "@/components/ui/pagination";
+  Ban,
+  Download,
+  Edit,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { exportToExcel } from "@/lib/excel-utils";
-import { useVehicles, type Vehicle } from "@/contexts/VehicleContext";
-import { useEmployees, type Employee } from "@/contexts/EmployeeContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function VehiclesPage() {
+  const { t } = useTranslation();
   const router = useRouter();
-  const { vehicles: contextVehicles, loading: contextLoading, refetchVehicles, pagination: contextPagination, goToPage, setItemsPerPage, setShowTerminated, setAssignedFilter, searchTerm, pendingSearch, searchVehicles } = useVehicles();
+  const {
+    vehicles: contextVehicles,
+    loading: contextLoading,
+    refetchVehicles,
+    pagination: contextPagination,
+    goToPage,
+    setItemsPerPage,
+    setShowTerminated,
+    setAssignedFilter,
+    searchTerm,
+    pendingSearch,
+    searchVehicles,
+  } = useVehicles();
   const { employees: contextEmployees } = useEmployees();
 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -53,7 +73,7 @@ export default function VehiclesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(
-    null
+    null,
   );
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [formData, setFormData] = useState({
@@ -79,7 +99,9 @@ export default function VehiclesPage() {
   >([]);
   const [showTerminatedFilter, setShowTerminatedFilter] = useState(false);
   const [isTerminateDialogOpen, setIsTerminateDialogOpen] = useState(false);
-  const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(null);
+  const [terminatingVehicle, setTerminatingVehicle] = useState<Vehicle | null>(
+    null,
+  );
   const [terminateFormData, setTerminateFormData] = useState({
     terminationDate: new Date().toISOString().split("T")[0],
     terminationReason: "",
@@ -108,11 +130,11 @@ export default function VehiclesPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "Vehicle name is required";
+      newErrors.name = t("vehicleNameRequired");
     }
 
     if (!formData.number.trim()) {
-      newErrors.number = "Vehicle number is required";
+      newErrors.number = t("vehicleNumberRequired");
     }
 
     setErrors(newErrors);
@@ -160,19 +182,19 @@ export default function VehiclesPage() {
       if (data.success) {
         toast.success(
           editingVehicle
-            ? "Vehicle updated successfully"
-            : "Vehicle created successfully"
+            ? t("vehicleUpdatedSuccess")
+            : t("vehicleCreatedSuccess"),
         );
         refetchVehicles();
         handleCloseDialog();
       } else {
-        toast.error(data.error || "Failed to save vehicle");
+        toast.error(data.error || t("failedToSaveVehicle"));
         setErrors({ submit: data.error });
       }
     } catch (error) {
       console.error("Error saving vehicle:", error);
-      toast.error("An error occurred while saving vehicle");
-      setErrors({ submit: "An error occurred" });
+      toast.error(t("errorSavingVehicle"));
+      setErrors({ submit: t("errorSavingVehicle") });
     }
   }
 
@@ -191,14 +213,14 @@ export default function VehiclesPage() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Vehicle deleted successfully");
+        toast.success(t("vehicleDeletedSuccess"));
         refetchVehicles();
       } else {
-        toast.error(data.error || "Failed to delete vehicle");
+        toast.error(data.error || t("failedToDeleteVehicle"));
       }
     } catch (error) {
       console.error("Error deleting vehicle:", error);
-      toast.error("An error occurred while deleting vehicle");
+      toast.error(t("errorDeletingVehicle"));
     } finally {
       setIsDeleteDialogOpen(false);
       setDeletingVehicleId(null);
@@ -209,8 +231,7 @@ export default function VehiclesPage() {
     if (vehicle) {
       // Fetch complete vehicle data from API
       try {
-        const res = await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {
-        });
+        const res = await fetch(`${API_URL}/api/vehicles/${vehicle._id}`, {});
         const data = await res.json();
 
         if (data.success) {
@@ -236,12 +257,12 @@ export default function VehiclesPage() {
               "unassigned",
           });
         } else {
-          toast.error("Failed to fetch vehicle details");
+          toast.error(t("failedToFetchVehicleDetails"));
           return;
         }
       } catch (error) {
         console.error("Error fetching vehicle:", error);
-        toast.error("Error loading vehicle data");
+        toast.error(t("errorLoadingVehicleData"));
         return;
       }
     } else {
@@ -293,8 +314,11 @@ export default function VehiclesPage() {
   async function handleTerminateConfirm() {
     if (!terminatingVehicle) return;
 
-    if (!terminateFormData.terminationDate || !terminateFormData.terminationReason) {
-      toast.error("Please provide both termination date and reason");
+    if (
+      !terminateFormData.terminationDate ||
+      !terminateFormData.terminationReason
+    ) {
+      toast.error(t("provideTerminationDateReason"));
       return;
     }
 
@@ -305,13 +329,13 @@ export default function VehiclesPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(terminateFormData),
-        }
+        },
       );
 
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Vehicle terminated successfully");
+        toast.success(t("vehicleTerminatedSuccess"));
         refetchVehicles();
         setIsTerminateDialogOpen(false);
         setTerminatingVehicle(null);
@@ -320,11 +344,11 @@ export default function VehiclesPage() {
           terminationReason: "",
         });
       } else {
-        toast.error(data.error || "Failed to terminate vehicle");
+        toast.error(data.error || t("failedToTerminateVehicle"));
       }
     } catch (error) {
       console.error("Error terminating vehicle:", error);
-      toast.error("An error occurred while terminating vehicle");
+      toast.error(t("errorTerminatingVehicle"));
     }
   }
 
@@ -374,7 +398,7 @@ export default function VehiclesPage() {
     ];
 
     exportToExcel(templateData, columns, "vehicle-template");
-    toast.success("Template downloaded successfully");
+    toast.success(t("templateDownloadedSuccess"));
   }
 
   // Helper function to parse various date formats
@@ -399,7 +423,7 @@ export default function VehiclesPage() {
         const date = new Date(
           parseInt(year),
           parseInt(month) - 1,
-          parseInt(day)
+          parseInt(day),
         );
         return isNaN(date.getTime()) ? null : date;
       }
@@ -463,10 +487,8 @@ export default function VehiclesPage() {
         !Object.keys(jsonData[0]).some((key) => EXPECTED_HEADERS.includes(key))
       ) {
         setParsedVehicles([]);
-        setValidationErrors([
-          'The column headers don\'t match the template. Please download the template below and keep its header row unchanged (the first row must contain "Vehicle Number", "Vehicle Name", "Type (private/public)", etc.).',
-        ]);
-        toast.error("Column headers don't match the template.");
+        setValidationErrors([t("vehicleColumnHeadersMismatchDetail")]);
+        toast.error(t("columnHeadersMismatch"));
         return;
       }
 
@@ -484,7 +506,7 @@ export default function VehiclesPage() {
             errors.push(
               `Row ${rowNum}: missing required field${
                 missingFields.length > 1 ? "s" : ""
-              } — ${missingFields.join(", ")}`
+              } — ${missingFields.join(", ")}`,
             );
             continue;
           }
@@ -511,7 +533,7 @@ export default function VehiclesPage() {
             else if (typeof rawDate === "number") {
               const excelEpoch = new Date(Date.UTC(1900, 0, 1));
               const date = new Date(
-                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000,
               );
               const year = date.getUTCFullYear();
               const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -525,7 +547,7 @@ export default function VehiclesPage() {
                 const year = parsedDate.getUTCFullYear();
                 const month = String(parsedDate.getUTCMonth() + 1).padStart(
                   2,
-                  "0"
+                  "0",
                 );
                 const day = String(parsedDate.getUTCDate()).padStart(2, "0");
                 startDate = `${year}-${month}-${day}`;
@@ -548,7 +570,7 @@ export default function VehiclesPage() {
             else if (typeof rawDate === "number") {
               const excelEpoch = new Date(Date.UTC(1900, 0, 1));
               const date = new Date(
-                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000
+                excelEpoch.getTime() + (rawDate - 2) * 24 * 60 * 60 * 1000,
               );
               const year = date.getUTCFullYear();
               const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -562,7 +584,7 @@ export default function VehiclesPage() {
                 const year = parsedDate.getUTCFullYear();
                 const month = String(parsedDate.getUTCMonth() + 1).padStart(
                   2,
-                  "0"
+                  "0",
                 );
                 const day = String(parsedDate.getUTCDate()).padStart(2, "0");
                 contractExpiry = `${year}-${month}-${day}`;
@@ -576,7 +598,7 @@ export default function VehiclesPage() {
             errors.push(
               `Row ${rowNum} (${row["Vehicle Number"]}): Type "${
                 rawType ?? ""
-              }" is not recognized — use "private" or "public"`
+              }" is not recognized — use "private" or "public"`,
             );
             continue;
           }
@@ -613,22 +635,20 @@ export default function VehiclesPage() {
 
       // If there are validation errors, show them
       if (errors.length > 0) {
-        toast.warning(
-          `${errors.length} row(s) failed validation. Check the preview below.`
-        );
+        toast.warning(`${errors.length} ${t("rowsFailedValidation")}`);
       }
 
       // If there are no valid vehicles, show error
       if (vehicles.length === 0) {
-        toast.error("No valid vehicles found in the file");
+        toast.error(t("noValidVehiclesFound"));
         setParsedVehicles([]);
         setValidationErrors(errors);
       } else {
-        toast.success(`${vehicles.length} vehicle(s) ready to upload`);
+        toast.success(`${vehicles.length} ${t("vehiclesReadyToUpload")}`);
       }
     } catch (error) {
       console.error("Error processing file:", error);
-      toast.error("Error processing file. Please check the format.");
+      toast.error(t("errorProcessingFile"));
     } finally {
       // Reset file input
       e.target.value = "";
@@ -637,7 +657,7 @@ export default function VehiclesPage() {
 
   async function handleBulkUploadSubmit() {
     if (parsedVehicles.length === 0) {
-      toast.error("No vehicles to upload");
+      toast.error(t("noVehiclesToUpload"));
       return;
     }
 
@@ -680,18 +700,16 @@ export default function VehiclesPage() {
           setServerErrors(serverErrs);
           if (createdCount > 0) {
             toast.warning(
-              `${createdCount} uploaded, ${serverErrs.length} failed. See the details below.`
+              `${createdCount} ${t("uploadedAndFailed", { failed: serverErrs.length })}`,
             );
           } else {
-            toast.error(
-              `All ${serverErrs.length} row(s) failed. See the details below.`
-            );
+            toast.error(t("allRowsFailed", { count: serverErrs.length }));
           }
           refetchVehicles();
           setParsedVehicles([]);
           setUploadProgress(0);
         } else {
-          toast.success(result.message || `Successfully uploaded vehicle(s)`);
+          toast.success(result.message || t("vehiclesUploadedSuccess"));
           refetchVehicles();
           setIsBulkUploadDialogOpen(false);
           setParsedVehicles([]);
@@ -700,14 +718,14 @@ export default function VehiclesPage() {
           setUploadProgress(0);
         }
       } else {
-        toast.error(result.error || "Failed to upload vehicles");
+        toast.error(result.error || t("failedToUploadVehicles"));
         if (result.data?.errors?.length > 0) {
           setServerErrors(result.data.errors);
         }
       }
     } catch (error) {
       console.error("Error uploading vehicles:", error);
-      toast.error("An error occurred while uploading vehicles");
+      toast.error(t("errorUploadingVehicles"));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -726,38 +744,38 @@ export default function VehiclesPage() {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Vehicles</h1>
+        <h1 className="text-3xl font-bold">{t("vehicles")}</h1>
         <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setIsBulkUploadDialogOpen(true)}
           >
             <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
+            {t("bulkUpload")}
           </Button>
           <Button onClick={() => handleOpenDialog()}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Vehicle
+            {t("addVehicle")}{" "}
           </Button>
         </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-purple-700">Total Vehicles</p>
-          <p className="text-2xl font-bold text-purple-900">
-            {totalVehicles}
+          <p className="text-sm font-medium text-purple-700">
+            {t("totalVehicles")}
           </p>
+          <p className="text-2xl font-bold text-purple-900">{totalVehicles}</p>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-green-700">Page</p>
+          <p className="text-sm font-medium text-green-700">{t("page")}</p>
           <p className="text-2xl font-bold text-green-900">
             {contextPagination.currentPage} / {contextPagination.totalPages}
           </p>
         </div>
         <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-amber-700">
-            {searchTerm ? "Search Results" : "On Page"}
+            {searchTerm ? t("searchResults") : t("onPage")}
           </p>
           <p className="text-2xl font-bold text-amber-900">
             {displayVehicles.length}
@@ -765,10 +783,11 @@ export default function VehiclesPage() {
         </div>
         <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow p-4">
           <p className="text-sm font-medium text-blue-700">
-            Assigned / Unassigned
+            {t("assignedUnassigned")}
           </p>
           <p className="text-2xl font-bold text-blue-900">
-            {contextVehicles.filter((v) => v.employeeId).length} / {contextVehicles.filter((v) => !v.employeeId).length}
+            {contextVehicles.filter((v) => v.employeeId).length} /{" "}
+            {contextVehicles.filter((v) => !v.employeeId).length}
           </p>
         </div>
       </div>
@@ -778,7 +797,7 @@ export default function VehiclesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search by vehicle number or name..."
+              placeholder={t("searchVehiclesByNumberOrName")}
               value={pendingSearch}
               onChange={(e) => searchVehicles(e.target.value)}
               className="pl-10"
@@ -790,14 +809,19 @@ export default function VehiclesPage() {
               </div>
             )}
           </div>
-          <Select value={assignedFilterValue} onValueChange={handleAssignedFilterChange}>
+          <Select
+            value={assignedFilterValue}
+            onValueChange={handleAssignedFilterChange}
+          >
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filter by assignment" />
+              <SelectValue placeholder={t("filterByAssignment")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Vehicles</SelectItem>
-              <SelectItem value="assigned">Assigned Vehicles</SelectItem>
-              <SelectItem value="unassigned">Unassigned Vehicles</SelectItem>
+              <SelectItem value="all">{t("allVehicles")}</SelectItem>
+              <SelectItem value="assigned">{t("assignedVehicles")}</SelectItem>
+              <SelectItem value="unassigned">
+                {t("unassignedVehicles")}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -809,12 +833,14 @@ export default function VehiclesPage() {
             className="whitespace-nowrap"
           >
             <XCircle className="mr-2 h-4 w-4" />
-            {showTerminatedFilter ? "Showing Terminated" : "Show Terminated"}
+            {showTerminatedFilter
+              ? t("showingTerminated")
+              : t("showTerminated")}
           </Button>
         </div>
         {searchTerm && (
           <div className="mt-2 text-xs text-gray-500">
-            Active search:{" "}
+            {t("activeSearch")}{" "}
             <span
               className="font-mono bg-gray-100 px-2 py-1 rounded"
               dir="auto"
@@ -825,12 +851,14 @@ export default function VehiclesPage() {
         )}
         {assignedFilterValue !== "all" && (
           <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded border border-blue-200">
-            Showing {assignedFilterValue === "assigned" ? "assigned" : "unassigned"} vehicles only
+            {assignedFilterValue === "assigned"
+              ? t("showingAssignedOnly")
+              : t("showingUnassignedOnly")}
           </div>
         )}
         {showTerminatedFilter && (
           <div className="mt-2 text-xs text-orange-600 bg-orange-50 px-3 py-2 rounded border border-orange-200">
-            Showing terminated vehicles only
+            {t("showingTerminatedVehiclesOnly")}
           </div>
         )}
       </div>
@@ -841,34 +869,34 @@ export default function VehiclesPage() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SI NO
+                {t("siNo")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Vehicle Number
+                {t("vehicleNumber")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Vehicle Name
+                {t("vehicleName")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Serial Number
+                {t("serialNumber")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
+                {t("type")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Amount (SAR)
+                {t("amountSAR")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Start Date
+                {t("startDate")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Expiry Date
+                {t("expiryDate")}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned Employee
+                {t("assignedEmployee")}
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                {t("actions")}
               </th>
             </tr>
           </thead>
@@ -880,7 +908,10 @@ export default function VehiclesPage() {
                 onClick={() => router.push(`/vehicles/${vehicle._id}`)}
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {(contextPagination.currentPage - 1) * contextPagination.itemsPerPage + index + 1}
+                  {(contextPagination.currentPage - 1) *
+                    contextPagination.itemsPerPage +
+                    index +
+                    1}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {vehicle.number}
@@ -899,7 +930,7 @@ export default function VehiclesPage() {
                         : "bg-green-100 text-green-800"
                     }`}
                   >
-                    {vehicle.type === "private" ? "Private" : "Public"}
+                    {vehicle.type === "private" ? t("private") : t("public")}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -921,12 +952,14 @@ export default function VehiclesPage() {
                   {vehicle.contractExpiry &&
                   new Date(vehicle.contractExpiry).getFullYear() !== 1970
                     ? new Date(vehicle.contractExpiry).toLocaleDateString(
-                        "en-GB"
+                        "en-GB",
                       )
                     : "-"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {vehicle.employeeId ? vehicle.employeeId.name : "Unassigned"}
+                  {vehicle.employeeId
+                    ? vehicle.employeeId.name
+                    : t("unassigned")}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <Button
@@ -936,7 +969,7 @@ export default function VehiclesPage() {
                       e.stopPropagation();
                       handleOpenDialog(vehicle);
                     }}
-                    title="Edit Vehicle"
+                    title={t("editVehicle")}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -947,7 +980,7 @@ export default function VehiclesPage() {
                       e.stopPropagation();
                       handleTerminateClick(vehicle);
                     }}
-                    title="Terminate Contract"
+                    title={t("terminateContract")}
                   >
                     <Ban className="h-4 w-4 text-orange-500" />
                   </Button>
@@ -958,7 +991,7 @@ export default function VehiclesPage() {
                       e.stopPropagation();
                       handleDeleteClick(vehicle._id);
                     }}
-                    title="Delete Vehicle"
+                    title={t("deleteVehicle")}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
                   </Button>
@@ -969,9 +1002,7 @@ export default function VehiclesPage() {
         </table>
         {displayVehicles.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            {searchTerm
-              ? "No vehicles found matching your search"
-              : "No vehicles found"}
+            {searchTerm ? t("noVehiclesFoundSearch") : t("noVehiclesFound")}
           </div>
         )}
 
@@ -987,9 +1018,7 @@ export default function VehiclesPage() {
       <div className="md:hidden space-y-4 relative">
         {displayVehicles.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            {searchTerm
-              ? "No vehicles found matching your search"
-              : "No vehicles found"}
+            {searchTerm ? t("noVehiclesFoundSearch") : t("noVehiclesFound")}
           </div>
         ) : (
           displayVehicles.map((vehicle) => (
@@ -1012,7 +1041,7 @@ export default function VehiclesPage() {
                           : "bg-green-100 text-green-800"
                       }`}
                     >
-                      {vehicle.type === "private" ? "Private" : "Public"}
+                      {vehicle.type === "private" ? t("private") : t("public")}
                     </span>
                   </div>
                   {vehicle.vehicleAmount && (
@@ -1030,7 +1059,7 @@ export default function VehiclesPage() {
                         <p>
                           Start:{" "}
                           {new Date(vehicle.startDate).toLocaleDateString(
-                            "en-GB"
+                            "en-GB",
                           )}
                         </p>
                       )}
@@ -1040,7 +1069,7 @@ export default function VehiclesPage() {
                         <p>
                           Expiry:{" "}
                           {new Date(vehicle.contractExpiry).toLocaleDateString(
-                            "en-GB"
+                            "en-GB",
                           )}
                         </p>
                       )}
@@ -1048,7 +1077,7 @@ export default function VehiclesPage() {
                   <p className="text-sm text-gray-500 mt-2">
                     {vehicle.employeeId
                       ? vehicle.employeeId.name
-                      : "Unassigned"}
+                      : t("unassigned")}
                   </p>
                 </div>
                 <div className="flex gap-1">
@@ -1100,14 +1129,14 @@ export default function VehiclesPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingVehicle ? "Edit Vehicle" : "Add Vehicle"}
+              {editingVehicle ? t("editVehicle") : t("addVehicle")}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="number">
-                  Vehicle Number <span className="text-red-500">*</span>
+                  {t("vehicleNumber")} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="number"
@@ -1115,7 +1144,8 @@ export default function VehiclesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, number: e.target.value })
                   }
-                  placeholder="e.g., ABC-1234 or أ ر د 1234"
+                  placeholder={t("vehicleNumberPlaceholder")}
+                  // ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                   dir="auto"
                 />
                 {errors.number && (
@@ -1335,12 +1365,16 @@ export default function VehiclesPage() {
             {parsedVehicles.length > 0 && (
               <div className="border border-gray-300 rounded-lg p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">
-                  Preview ({parsedVehicles.length} vehicle{parsedVehicles.length > 1 ? 's' : ''} ready)
+                  Preview ({parsedVehicles.length} vehicle
+                  {parsedVehicles.length > 1 ? "s" : ""} ready)
                 </h3>
                 <div className="max-h-48 overflow-y-auto bg-gray-50 rounded p-3">
                   <div className="space-y-2 text-sm">
                     {parsedVehicles.slice(0, 5).map((vehicle, idx) => (
-                      <div key={idx} className="flex justify-between items-center border-b border-gray-200 pb-2">
+                      <div
+                        key={idx}
+                        className="flex justify-between items-center border-b border-gray-200 pb-2"
+                      >
                         <span className="font-medium">{vehicle.number}</span>
                         <span className="text-gray-600">{vehicle.name}</span>
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -1355,7 +1389,6 @@ export default function VehiclesPage() {
                     )}
                   </div>
                 </div>
-
               </div>
             )}
 
@@ -1485,7 +1518,9 @@ export default function VehiclesPage() {
                 disabled={isUploading}
               >
                 <Upload className="mr-2 h-4 w-4" />
-                {isUploading ? "Uploading..." : `Upload ${parsedVehicles.length} Vehicle${parsedVehicles.length > 1 ? 's' : ''}`}
+                {isUploading
+                  ? "Uploading..."
+                  : `Upload ${parsedVehicles.length} Vehicle${parsedVehicles.length > 1 ? "s" : ""}`}
               </Button>
             )}
           </DialogFooter>
@@ -1493,7 +1528,10 @@ export default function VehiclesPage() {
       </Dialog>
 
       {/* Terminate Vehicle Dialog */}
-      <Dialog open={isTerminateDialogOpen} onOpenChange={setIsTerminateDialogOpen}>
+      <Dialog
+        open={isTerminateDialogOpen}
+        onOpenChange={setIsTerminateDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Terminate Vehicle Contract</DialogTitle>
@@ -1502,7 +1540,8 @@ export default function VehiclesPage() {
             <div className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-blue-900">
-                  Vehicle: {terminatingVehicle.number} - {terminatingVehicle.name}
+                  Vehicle: {terminatingVehicle.number} -{" "}
+                  {terminatingVehicle.name}
                 </p>
                 {terminatingVehicle.serialNumber && (
                   <p className="text-xs text-blue-700 mt-1">
@@ -1550,8 +1589,9 @@ export default function VehiclesPage() {
               <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md text-sm text-yellow-800">
                 <p className="font-medium">Note:</p>
                 <p className="mt-1">
-                  Terminating a vehicle contract will mark it as inactive. The vehicle
-                  can be viewed by enabling the "Show Terminated" filter.
+                  Terminating a vehicle contract will mark it as inactive. The
+                  vehicle can be viewed by enabling the "Show Terminated"
+                  filter.
                 </p>
               </div>
             </div>

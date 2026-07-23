@@ -357,7 +357,8 @@ export default function PaymentsPage() {
 
       const emiPeriodMonths = parseInt(paymentFormData.emiPeriodMonths, 10);
       if (isNaN(emiPeriodMonths) || emiPeriodMonths <= 0) {
-        newErrors.emiPeriodMonths = "EMI period must be a positive number of months";
+        newErrors.emiPeriodMonths =
+          "EMI period must be a positive number of months";
       }
     }
 
@@ -389,7 +390,8 @@ export default function PaymentsPage() {
 
     const interestPercent = parseFloat(extendFormData.interestPercent);
     if (isNaN(interestPercent) || interestPercent < 0) {
-      newErrors.interestPercent = "Interest % must be zero or a positive number";
+      newErrors.interestPercent =
+        "Interest % must be zero or a positive number";
     }
 
     const additionalMonths = parseInt(extendFormData.additionalMonths, 10);
@@ -439,7 +441,9 @@ export default function PaymentsPage() {
 
       if (data.success) {
         toast.success(
-          editingPayment ? "Payment updated successfully" : "Payment created successfully",
+          editingPayment
+            ? "Payment updated successfully"
+            : "Payment created successfully",
         );
         fetchPayments(
           pagination.currentPage,
@@ -959,7 +963,8 @@ export default function PaymentsPage() {
                                   {payment.paymentType === "EMI" && (
                                     <Badge variant="secondary">EMI</Badge>
                                   )}
-                                  {payment.emi && getEmiStatusBadge(payment.emi)}
+                                  {payment.emi &&
+                                    getEmiStatusBadge(payment.emi)}
                                 </div>
                                 {payment.remarks && (
                                   <p className="text-xs text-gray-500 mt-1">
@@ -1151,8 +1156,8 @@ export default function PaymentsPage() {
                                 </div>
                               ) : (
                                 <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-500 text-center border border-gray-200">
-                                  No payment history yet. Click "Installment"
-                                  to record a payment.
+                                  No payment history yet. Click "Installment" to
+                                  record a payment.
                                 </div>
                               )}
 
@@ -1356,6 +1361,7 @@ export default function PaymentsPage() {
                       id="emiPeriodMonths"
                       type="number"
                       min="1"
+                      disabled
                       value={paymentFormData.emiPeriodMonths}
                       onChange={(e) =>
                         setPaymentFormData({
@@ -1562,8 +1568,8 @@ export default function PaymentsPage() {
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
                 Interest will be calculated as a percentage of the current due
-                amount and added to the total. The due date will move forward
-                by the number of months you choose.
+                amount and added to the total. The due date will move forward by
+                the number of months you choose.
               </div>
               <div>
                 <Label htmlFor="interestPercent">Interest (%)</Label>
@@ -1583,23 +1589,31 @@ export default function PaymentsPage() {
                 />
                 {extendingPayment &&
                   extendFormData.interestPercent &&
-                  !isNaN(parseFloat(extendFormData.interestPercent)) && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Interest amount:{" "}
-                      {formatCurrency(
-                        (extendingPayment.dues *
-                          parseFloat(extendFormData.interestPercent)) /
-                          100,
-                      )}{" "}
-                      → New total:{" "}
-                      {formatCurrency(
-                        extendingPayment.totalAmount +
-                          (extendingPayment.dues *
-                            parseFloat(extendFormData.interestPercent)) /
-                            100,
-                      )}
-                    </p>
-                  )}
+                  !isNaN(parseFloat(extendFormData.interestPercent)) &&
+                  (() => {
+                    const emiPrincipal =
+                      (extendingPayment.originalAmount ??
+                        extendingPayment.totalAmount) -
+                      (extendingPayment.downPayment || 0);
+
+                    const interestAmount =
+                      (emiPrincipal *
+                        parseFloat(extendFormData.interestPercent)) /
+                      100;
+
+                    return (
+                      <p className="text-xs text-gray-500 mt-2">
+                        EMI Principal: {formatCurrency(emiPrincipal)}
+                        <br />
+                        Interest amount: {formatCurrency(interestAmount)}
+                        <br />
+                        New Total:{" "}
+                        {formatCurrency(
+                          extendingPayment.totalAmount + interestAmount,
+                        )}
+                      </p>
+                    );
+                  })()}
                 {errors.interestPercent && (
                   <p className="text-sm text-red-500 mt-1">
                     {errors.interestPercent}
