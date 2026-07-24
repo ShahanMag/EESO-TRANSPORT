@@ -972,7 +972,7 @@ export default function PaymentsPage() {
                                   </p>
                                 )}
                                 {payment.emi && (
-                                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                  <div className="flex items-center gap-1 text-xs text-red-500 font-semibold mt-1">
                                     <Clock className="h-3 w-3" />
                                     <span>
                                       Due by {formatDate(payment.emi.dueDate)}
