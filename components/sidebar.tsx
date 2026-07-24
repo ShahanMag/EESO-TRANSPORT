@@ -134,6 +134,7 @@ export function Sidebar({ onLinkClick }: SidebarProps = {}) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto bg-gray-900 text-white hide-scrollbar">
+      <div className="gtranslate_wrapper"></div>
       {/* Logo Section */}
       <div className="border-b border-gray-800 px-4 py-4">
         <div className="relative h-24 w-full">

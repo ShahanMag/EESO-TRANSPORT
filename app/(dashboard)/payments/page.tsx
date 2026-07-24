@@ -1014,19 +1014,19 @@ export default function PaymentsPage() {
                               )}
 
                               <div className="flex space-x-1">
-                                {payment.emi?.canExtend && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleOpenExtendEmiDialog(payment)
-                                    }
-                                    className="text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
-                                  >
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    Extend EMI
-                                  </Button>
-                                )}
+                                {/* {payment.emi?.canExtend && ( */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleOpenExtendEmiDialog(payment)
+                                  }
+                                  className="text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
+                                >
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Extend EMI
+                                </Button>
+                                {/* )} */}
                                 <Button
                                   variant="outline"
                                   size="sm"
