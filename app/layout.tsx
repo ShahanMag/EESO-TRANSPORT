@@ -3,6 +3,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { YearFilterProvider } from "@/contexts/YearFilterContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +27,24 @@ export default function RootLayout({
         <YearFilterProvider>
           <LanguageSwitcher />
           {children}
+          <Script id="gtranslate-settings" strategy="afterInteractive">
+            {`
+              window.gtranslateSettings = {
+                default_language: "en",
+                languages: ["en", "ar"],
+
+                // Floating widget
+                float_switcher_open_direction: "bottom",
+                switcher_horizontal_position: "right",
+                switcher_vertical_position: "bottom"
+              };
+            `}
+          </Script>
+
+          <Script
+            src="https://cdn.gtranslate.net/widgets/latest/float.js"
+            strategy="afterInteractive"
+          />
         </YearFilterProvider>
       </body>
     </html>

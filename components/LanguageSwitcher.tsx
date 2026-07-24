@@ -25,30 +25,30 @@ export default function LanguageSwitcher() {
 
     localStorage.setItem("lang", language);
   };
+  return null;
+  // return (
+  //   // <div className="fixed bottom-5 right-5 z-50 flex rounded-full bg-white shadow-lg border border-gray-200 overflow-hidden">
+  //   //   <button
+  //   //     onClick={() => changeLanguage("en")}
+  //   //     className={`px-5 py-2 text-sm font-semibold transition-all duration-300 ${
+  //   //       lang === "en"
+  //   //         ? "bg-blue-600 text-white"
+  //   //         : "bg-white text-gray-700 hover:bg-gray-100"
+  //   //     }`}
+  //   //   >
+  //   //     🇬🇧 English
+  //   //   </button>
 
-  return (
-    <div className="fixed bottom-5 right-5 z-50 flex rounded-full bg-white shadow-lg border border-gray-200 overflow-hidden">
-      <button
-        onClick={() => changeLanguage("en")}
-        className={`px-5 py-2 text-sm font-semibold transition-all duration-300 ${
-          lang === "en"
-            ? "bg-blue-600 text-white"
-            : "bg-white text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        🇬🇧 English
-      </button>
-
-      <button
-        onClick={() => changeLanguage("ar")}
-        className={`px-5 py-2 text-sm font-semibold transition-all duration-300 ${
-          lang === "ar"
-            ? "bg-blue-600 text-white"
-            : "bg-white text-gray-700 hover:bg-gray-100"
-        }`}
-      >
-        🇸🇦 العربية
-      </button>
-    </div>
-  );
+  //   //   <button
+  //   //     onClick={() => changeLanguage("ar")}
+  //   //     className={`px-5 py-2 text-sm font-semibold transition-all duration-300 ${
+  //   //       lang === "ar"
+  //   //         ? "bg-blue-600 text-white"
+  //   //         : "bg-white text-gray-700 hover:bg-gray-100"
+  //   //     }`}
+  //   //   >
+  //   //     🇸🇦 العربية
+  //   //   </button>
+  //   // </div>
+  // );
 }
